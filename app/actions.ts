@@ -332,31 +332,35 @@ export async function getRegistrationDetail(registrationId: string) {
   const { user, profile, supabase } = await getUserWithProfile()
   if (!user) throw new Error('Unauthorized')
 
-  const { data: registration, error } = await supabase
-    .from('fda_registrations')
-    .select(`
-      *,
-      registration_types(id, code, name),
-      registration_statuses(id, code, name, color),
-      companies(id, name),
-      pipeline_stages(
-        id, stage_number, stage_name, stage_description, 
-        status, started_at, completed_at, notes
-      )
-    `)
-    .eq('id', registrationId)
-    .single()
+  // Fetch registration and pipeline stages separately due to FK direction
+  const [registrationResult, stagesResult] = await Promise.all([
+    supabase
+      .from('fda_registrations')
+      .select(`
+        *,
+        registration_types(id, code, name),
+        registration_statuses(id, code, name, color),
+        companies(id, name)
+      `)
+      .eq('id', registrationId)
+      .single(),
+    supabase
+      .from('pipeline_stages')
+      .select('id, stage_number, stage_name, stage_description, status, started_at, completed_at, notes')
+      .eq('registration_id', registrationId)
+      .order('stage_number', { ascending: true })
+  ])
 
-  if (error) throw error
+  if (registrationResult.error) throw registrationResult.error
+  
+  const registration = {
+    ...registrationResult.data,
+    pipeline_stages: stagesResult.data || []
+  }
   
   // Check access: admin/staff can see all, customers can only see their company's
   if (profile?.roles?.name === 'customer' && registration.company_id !== profile.company_id) {
     throw new Error('Access denied')
-  }
-
-  // Sort pipeline stages by stage_number
-  if (registration.pipeline_stages) {
-    registration.pipeline_stages.sort((a: { stage_number: number }, b: { stage_number: number }) => a.stage_number - b.stage_number)
   }
 
   return registration
