@@ -326,3 +326,196 @@ export async function getUserRole() {
     canManageUsers: profile?.roles?.name === 'admin',
   }
 }
+
+// Get registration detail with pipeline stages
+export async function getRegistrationDetail(registrationId: string) {
+  const { user, profile, supabase } = await getUserWithProfile()
+  if (!user) throw new Error('Unauthorized')
+
+  const { data: registration, error } = await supabase
+    .from('fda_registrations')
+    .select(`
+      *,
+      registration_types(id, code, name),
+      registration_statuses(id, code, name, color),
+      companies(id, name),
+      pipeline_stages(
+        id, stage_number, stage_name, stage_description, 
+        status, started_at, completed_at, notes
+      )
+    `)
+    .eq('id', registrationId)
+    .single()
+
+  if (error) throw error
+  
+  // Check access: admin/staff can see all, customers can only see their company's
+  if (profile?.roles?.name === 'customer' && registration.company_id !== profile.company_id) {
+    throw new Error('Access denied')
+  }
+
+  // Sort pipeline stages by stage_number
+  if (registration.pipeline_stages) {
+    registration.pipeline_stages.sort((a: { stage_number: number }, b: { stage_number: number }) => a.stage_number - b.stage_number)
+  }
+
+  return registration
+}
+
+// Complete a pipeline stage and move to next
+export async function completeStage(registrationId: string, stageNumber: number, notes?: string) {
+  const { user, profile, supabase } = await getUserWithProfile()
+  if (!user) throw new Error('Unauthorized')
+
+  // Only admin/staff can complete stages
+  if (profile?.roles?.name === 'customer') {
+    throw new Error('Customers cannot update pipeline stages')
+  }
+
+  // Complete current stage
+  const { error: completeError } = await supabase
+    .from('pipeline_stages')
+    .update({
+      status: 'completed',
+      completed_at: new Date().toISOString(),
+      completed_by: user.id,
+      notes: notes || null,
+    })
+    .eq('registration_id', registrationId)
+    .eq('stage_number', stageNumber)
+
+  if (completeError) throw completeError
+
+  // Start next stage if exists
+  const { error: startError } = await supabase
+    .from('pipeline_stages')
+    .update({
+      status: 'in_progress',
+      started_at: new Date().toISOString(),
+    })
+    .eq('registration_id', registrationId)
+    .eq('stage_number', stageNumber + 1)
+
+  // Update registration's current_stage
+  await supabase
+    .from('fda_registrations')
+    .update({ current_stage: stageNumber + 1 })
+    .eq('id', registrationId)
+
+  // Update registration status based on stage
+  const statusMap: Record<number, string> = {
+    1: 'DOCUMENT_REVIEW',
+    2: 'PREPARING',
+    3: 'SUBMITTED',
+    4: 'FDA_PROCESSING',
+    5: 'COMPLETED',
+  }
+
+  const newStatusCode = statusMap[stageNumber + 1] || statusMap[stageNumber]
+  if (newStatusCode) {
+    const { data: newStatus } = await supabase
+      .from('registration_statuses')
+      .select('id')
+      .eq('code', newStatusCode)
+      .single()
+    
+    if (newStatus) {
+      await supabase
+        .from('fda_registrations')
+        .update({ status_id: newStatus.id })
+        .eq('id', registrationId)
+    }
+  }
+
+  // Log activity
+  await supabase.from('activity_logs').insert({
+    registration_id: registrationId,
+    user_id: user.id,
+    action: 'stage_completed',
+    description: `Hoàn thành bước ${stageNumber}`,
+    new_value: notes || null,
+  })
+
+  return { success: true }
+}
+
+// Update FDA result (when registration is complete)
+export async function updateFDAResult(registrationId: string, fdaData: {
+  fda_registration_number: string
+  fda_issue_date: string
+  fda_expiry_date?: string
+  us_agent_name?: string
+  us_agent_email?: string
+  us_agent_phone?: string
+  us_agent_expiry_date?: string
+}) {
+  const { user, profile, supabase } = await getUserWithProfile()
+  if (!user) throw new Error('Unauthorized')
+
+  // Only admin/staff can update FDA results
+  if (profile?.roles?.name === 'customer') {
+    throw new Error('Customers cannot update FDA results')
+  }
+
+  // Get completed status
+  const { data: completedStatus } = await supabase
+    .from('registration_statuses')
+    .select('id')
+    .eq('code', 'COMPLETED')
+    .single()
+
+  const { data, error } = await supabase
+    .from('fda_registrations')
+    .update({
+      ...fdaData,
+      status_id: completedStatus?.id,
+    })
+    .eq('id', registrationId)
+    .select()
+
+  if (error) throw error
+
+  // Log activity
+  await supabase.from('activity_logs').insert({
+    registration_id: registrationId,
+    user_id: user.id,
+    action: 'fda_result_updated',
+    description: `Cập nhật số FDA: ${fdaData.fda_registration_number}`,
+  })
+
+  return data?.[0]
+}
+
+// Get activity log for a registration
+export async function getActivityLog(registrationId: string) {
+  const { user, supabase } = await getUserWithProfile()
+  if (!user) throw new Error('Unauthorized')
+
+  const { data, error } = await supabase
+    .from('activity_logs')
+    .select('*, profiles:user_id(full_name, email)')
+    .eq('registration_id', registrationId)
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return data || []
+}
+
+// Add note to a stage
+export async function addStageNote(registrationId: string, stageNumber: number, notes: string) {
+  const { user, profile, supabase } = await getUserWithProfile()
+  if (!user) throw new Error('Unauthorized')
+
+  if (profile?.roles?.name === 'customer') {
+    throw new Error('Customers cannot add stage notes')
+  }
+
+  const { error } = await supabase
+    .from('pipeline_stages')
+    .update({ notes })
+    .eq('registration_id', registrationId)
+    .eq('stage_number', stageNumber)
+
+  if (error) throw error
+  return { success: true }
+}
