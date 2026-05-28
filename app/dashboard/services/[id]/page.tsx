@@ -13,10 +13,8 @@ import { ArrowLeft, FileUp, Calendar, Hash } from 'lucide-react'
 
 interface Service {
   id: string
-  product_name: string
-  service_type: string
+  facility_name: string
   product_description: string | null
-  status: string
   fda_registration_number: string | null
   fda_issue_date: string | null
   fda_expiry_date: string | null
@@ -24,6 +22,14 @@ interface Service {
   us_agent_expiry_date: string | null
   created_at: string
   updated_at: string
+  registration_types: {
+    code: string
+    name: string
+  } | null
+  registration_statuses: {
+    code: string
+    name: string
+  } | null
 }
 
 interface PipelineStage {
@@ -50,8 +56,12 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
 
       try {
         const { data: serviceData, error: serviceError } = await supabase
-          .from('services')
-          .select('*')
+          .from('fda_registrations')
+          .select(`
+            *,
+            registration_types(code, name),
+            registration_statuses(code, name)
+          `)
           .eq('id', id)
           .single()
 
@@ -107,18 +117,18 @@ export default function ServiceDetailPage({ params }: { params: Promise<{ id: st
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard">
+          <Link href="/dashboard/services">
             <Button variant="ghost" size="sm">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Quay lại
             </Button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold">{service.product_name}</h1>
-            <p className="text-muted-foreground">{getServiceTypeLabel(service.service_type)}</p>
+            <h1 className="text-2xl font-bold">{service.facility_name}</h1>
+            <p className="text-muted-foreground">{service.registration_types?.name || service.registration_types?.code}</p>
           </div>
         </div>
-        <Badge className={getStatusColor(service.status)}>{getStatusLabel(service.status)}</Badge>
+        <Badge className={getStatusColor(service.registration_statuses?.code || '')}>{service.registration_statuses?.name || getStatusLabel(service.registration_statuses?.code || '')}</Badge>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
