@@ -136,9 +136,9 @@ export async function createService(formData: {
 
   // Map service_type to database code
   const serviceTypeMap: Record<string, string> = {
-    'food': 'FOOD',
+    'food': 'FFR',
     'cosmetic': 'COSMETIC',
-    'medical_device': 'MEDICAL_DEVICE',
+    'medical_device': 'MED_DEV',
   }
   const typeCode = serviceTypeMap[formData.service_type.toLowerCase()] || formData.service_type.toUpperCase()
 
@@ -151,7 +151,6 @@ export async function createService(formData: {
   // If type not found, try to get available types for better error message
   if (!typeResult.data) {
     const { data: availableTypes } = await supabase.from('registration_types').select('code')
-    console.log('[v0] Available registration types:', availableTypes)
     throw new Error(`Invalid service type: ${typeCode}. Available: ${availableTypes?.map(t => t.code).join(', ')}`)
   }
 
@@ -163,7 +162,6 @@ export async function createService(formData: {
       statusId = pendingStatus.id
     } else {
       const { data: availableStatuses } = await supabase.from('registration_statuses').select('code')
-      console.log('[v0] Available registration statuses:', availableStatuses)
       throw new Error(`No default status found. Available: ${availableStatuses?.map(s => s.code).join(', ')}`)
     }
   }
