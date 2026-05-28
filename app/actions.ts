@@ -166,6 +166,40 @@ export async function createService(formData: {
     }
   }
 
+  // Get or create company_id
+  let companyId = profile?.company_id
+  if (!companyId) {
+    // Try to find existing company by user's company_name or create one
+    const companyName = profile?.company_name || `Company of ${user.email}`
+    
+    // First check if company exists with this name
+    const { data: existingCompany } = await supabase
+      .from('companies')
+      .select('id')
+      .eq('name', companyName)
+      .single()
+    
+    if (existingCompany) {
+      companyId = existingCompany.id
+    } else {
+      // Create new company
+      const { data: newCompany, error: companyError } = await supabase
+        .from('companies')
+        .insert([{ name: companyName }])
+        .select('id')
+        .single()
+      
+      if (companyError) throw new Error(`Failed to create company: ${companyError.message}`)
+      companyId = newCompany.id
+    }
+    
+    // Update profile with company_id
+    await supabase
+      .from('profiles')
+      .update({ company_id: companyId })
+      .eq('id', user.id)
+  }
+
   const { data, error } = await supabase
     .from('fda_registrations')
     .insert([{
@@ -174,7 +208,7 @@ export async function createService(formData: {
       registration_type_id: typeResult.data.id,
       status_id: statusId,
       created_by: user.id,
-      company_id: profile?.company_id,
+      company_id: companyId,
     }])
     .select()
 
