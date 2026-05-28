@@ -134,14 +134,38 @@ export async function createService(formData: {
     throw new Error('Customers cannot create registrations directly')
   }
 
+  // Map service_type to database code
+  const serviceTypeMap: Record<string, string> = {
+    'food': 'FOOD',
+    'cosmetic': 'COSMETIC',
+    'medical_device': 'MEDICAL_DEVICE',
+  }
+  const typeCode = serviceTypeMap[formData.service_type.toLowerCase()] || formData.service_type.toUpperCase()
+
   // Get registration type and default status
   const [typeResult, statusResult] = await Promise.all([
-    supabase.from('registration_types').select('id').eq('code', formData.service_type.toUpperCase()).single(),
-    supabase.from('registration_statuses').select('id').eq('code', 'DRAFT').single(),
+    supabase.from('registration_types').select('id, code').eq('code', typeCode).single(),
+    supabase.from('registration_statuses').select('id, code').eq('code', 'DRAFT').single(),
   ])
 
-  if (!typeResult.data || !statusResult.data) {
-    throw new Error('Invalid service type or status')
+  // If type not found, try to get available types for better error message
+  if (!typeResult.data) {
+    const { data: availableTypes } = await supabase.from('registration_types').select('code')
+    console.log('[v0] Available registration types:', availableTypes)
+    throw new Error(`Invalid service type: ${typeCode}. Available: ${availableTypes?.map(t => t.code).join(', ')}`)
+  }
+
+  // If DRAFT status not found, try PENDING or get available statuses
+  let statusId = statusResult.data?.id
+  if (!statusId) {
+    const { data: pendingStatus } = await supabase.from('registration_statuses').select('id').eq('code', 'PENDING').single()
+    if (pendingStatus) {
+      statusId = pendingStatus.id
+    } else {
+      const { data: availableStatuses } = await supabase.from('registration_statuses').select('code')
+      console.log('[v0] Available registration statuses:', availableStatuses)
+      throw new Error(`No default status found. Available: ${availableStatuses?.map(s => s.code).join(', ')}`)
+    }
   }
 
   const { data, error } = await supabase
@@ -150,7 +174,7 @@ export async function createService(formData: {
       facility_name: formData.product_name,
       product_description: formData.product_description,
       registration_type_id: typeResult.data.id,
-      status_id: statusResult.data.id,
+      status_id: statusId,
       created_by: user.id,
       company_id: profile?.company_id,
     }])
