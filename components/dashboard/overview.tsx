@@ -155,7 +155,7 @@ export async function DashboardOverview() {
           <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-foreground">Dịch vụ đang xử lý</CardTitle>
-              <Link href="/dashboard/pipeline">
+              <Link href="/dashboard/service">
                 <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
                   Xem tất cả <ArrowRight className="ml-1 h-4 w-4" />
                 </Button>

@@ -211,8 +211,8 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
       <div className="flex flex-col items-center justify-center h-96 text-muted-foreground">
         <AlertTriangle className="h-12 w-12 mb-4" />
         <p>Không tìm thấy dịch vụ</p>
-        <Link href="/dashboard/pipeline">
-          <Button variant="link" className="mt-2">Quay lại Pipeline</Button>
+        <Link href="/dashboard/service">
+          <Button variant="link" className="mt-2">Quay lại danh sách dịch vụ</Button>
         </Link>
       </div>
     )
@@ -233,10 +233,10 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
   return (
     <div className="space-y-6">
       {/* Back Button */}
-      <Link href="/dashboard/pipeline">
+      <Link href="/dashboard/service">
         <Button variant="ghost" size="sm" className="gap-2">
           <ArrowLeft className="h-4 w-4" />
-          Quay lại Pipeline
+          Quay lại danh sách dịch vụ
         </Button>
       </Link>
 
