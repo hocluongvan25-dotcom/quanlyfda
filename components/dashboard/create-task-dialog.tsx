@@ -74,10 +74,10 @@ export function CreateTaskDialog({
     const newErrors: Record<string, string> = {}
     
     if (!formData.title.trim()) {
-      newErrors.title = 'Vui long nhap ten cong viec'
+      newErrors.title = 'Vui lòng nhập tên công việc'
     }
     if (!formData.stage) {
-      newErrors.stage = 'Vui long chon giai doan'
+      newErrors.stage = 'Vui lòng chọn giai đoạn'
     }
     
     setErrors(newErrors)
@@ -112,7 +112,7 @@ export function CreateTaskDialog({
       resetForm()
     } catch (error) {
       console.error('[v0] Error saving task:', error)
-      setErrors({ submit: 'Khong the luu cong viec. Vui long thu lai.' })
+      setErrors({ submit: 'Không thể lưu công việc. Vui lòng thử lại.' })
     } finally {
       setIsLoading(false)
     }
@@ -127,27 +127,27 @@ export function CreateTaskDialog({
         {trigger || (
           <Button variant="outline" size="sm" className="gap-2">
             {isEditMode ? <Edit2 className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-            {isEditMode ? 'Sua' : 'Them cong viec'}
+            {isEditMode ? 'Sửa' : 'Thêm công việc'}
           </Button>
         )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>{isEditMode ? 'Sua cong viec' : 'Them cong viec moi'}</DialogTitle>
+          <DialogTitle>{isEditMode ? 'Sửa công việc' : 'Thêm công việc mới'}</DialogTitle>
           <DialogDescription>
             {isEditMode 
-              ? 'Cap nhat thong tin cong viec trong checklist' 
-              : 'Them cong viec moi vao checklist cua dich vu'}
+              ? 'Cập nhật thông tin công việc trong checklist' 
+              : 'Thêm công việc mới vào checklist của dịch vụ'}
           </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Task Title */}
           <div className="space-y-2">
-            <Label htmlFor="title">Ten cong viec *</Label>
+            <Label htmlFor="title">Tên công việc *</Label>
             <Input
               id="title"
-              placeholder="VD: Thu thap giay phep kinh doanh"
+              placeholder="VD: Thu thập giấy phép kinh doanh"
               value={formData.title}
               onChange={(e) => {
                 setFormData(prev => ({ ...prev, title: e.target.value }))
@@ -162,7 +162,7 @@ export function CreateTaskDialog({
 
           {/* Pipeline Stage */}
           <div className="space-y-2">
-            <Label htmlFor="stage">Giai doan *</Label>
+            <Label htmlFor="stage">Giai đoạn *</Label>
             <Select
               value={formData.stage}
               onValueChange={(value: PipelineStage) => {
@@ -171,7 +171,7 @@ export function CreateTaskDialog({
               }}
             >
               <SelectTrigger className={errors.stage ? 'border-destructive' : ''}>
-                <SelectValue placeholder="Chon giai doan" />
+                <SelectValue placeholder="Chọn giai đoạn" />
               </SelectTrigger>
               <SelectContent>
                 {PIPELINE_STAGES.map((stage) => (
@@ -188,10 +188,10 @@ export function CreateTaskDialog({
 
           {/* Description */}
           <div className="space-y-2">
-            <Label htmlFor="description">Mo ta (tuy chon)</Label>
+            <Label htmlFor="description">Mô tả (tùy chọn)</Label>
             <Textarea
               id="description"
-              placeholder="Nhap mo ta chi tiet ve cong viec..."
+              placeholder="Nhập mô tả chi tiết về công việc..."
               value={formData.description}
               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
               rows={3}
@@ -211,18 +211,18 @@ export function CreateTaskDialog({
               onClick={() => setOpen(false)}
               disabled={isLoading}
             >
-              Huy
+              Hủy
             </Button>
             <Button type="submit" disabled={isLoading}>
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Dang luu...
+                  Đang lưu...
                 </>
               ) : (
                 <>
                   {isEditMode ? <Edit2 className="h-4 w-4 mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
-                  {isEditMode ? 'Cap nhat' : 'Them cong viec'}
+                  {isEditMode ? 'Cập nhật' : 'Thêm công việc'}
                 </>
               )}
             </Button>
