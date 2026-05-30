@@ -13,6 +13,7 @@ import {
   getServiceTypeLabel,
   getStageIndex,
   type Service,
+  type PipelineStage,
   type PipelineTask,
   type Document,
 } from '@/lib/types'

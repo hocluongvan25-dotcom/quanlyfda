@@ -29,7 +29,7 @@ import Link from 'next/link'
 import { UploadDocumentDialog } from './upload-document-dialog'
 import { SelectServiceDialog } from './select-service-dialog'
 
-interface DocumentWithService extends Document {
+interface DocumentWithService extends Omit<Document, 'service'> {
   service?: {
     id: string
     product_name: string
