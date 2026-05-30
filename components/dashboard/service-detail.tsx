@@ -35,6 +35,7 @@ import {
   Plus,
   Trash2,
   MoreVertical,
+  Pencil,
 } from 'lucide-react'
 import Link from 'next/link'
 import { UploadDocumentDialog } from './upload-document-dialog'
@@ -42,6 +43,7 @@ import { RenewalRequestDialog } from './renewal-request-dialog'
 import { CreateTaskDialog } from './create-task-dialog'
 import { deleteTask, getProfile } from '@/app/actions/services'
 import { StageTransitionDialog } from './stage-transition-dialog'
+import { ServiceInfoDialog } from './service-info-dialog'
 import type { Profile } from '@/lib/types'
 import {
   DropdownMenu,
@@ -113,6 +115,8 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
   const [userProfile, setUserProfile] = useState<Profile | null>(null)
   const [stageTransitionOpen, setStageTransitionOpen] = useState(false)
   const [targetStage, setTargetStage] = useState<PipelineStage | null>(null)
+  const [fdaDialogOpen, setFdaDialogOpen] = useState(false)
+  const [agentDialogOpen, setAgentDialogOpen] = useState(false)
 
   const isStaffOrAdmin = userProfile?.role === 'admin' || userProfile?.role === 'staff'
 
@@ -596,10 +600,23 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
           {/* FDA Registration Info */}
           <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="text-foreground flex items-center gap-2">
-                <Shield className="h-5 w-5 text-primary" />
-                Thông tin FDA
-              </CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-foreground flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-primary" />
+                  Thông tin FDA
+                </CardTitle>
+                {isStaffOrAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-muted-foreground hover:text-foreground"
+                    onClick={() => setFdaDialogOpen(true)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    {service.fda_code ? 'Sửa' : 'Cập nhật'}
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {service.fda_code ? (
@@ -645,10 +662,23 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
           {/* US Agent Info */}
           <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="text-foreground flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" />
-                Thông tin US Agent
-              </CardTitle>
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="text-foreground flex items-center gap-2">
+                  <User className="h-5 w-5 text-primary" />
+                  Thông tin US Agent
+                </CardTitle>
+                {isStaffOrAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-1.5 text-muted-foreground hover:text-foreground"
+                    onClick={() => setAgentDialogOpen(true)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    {service.us_agent_name ? 'Sửa' : 'Cập nhật'}
+                  </Button>
+                )}
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               {service.us_agent_name ? (
@@ -750,6 +780,28 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
           </Card>
         </div>
       </div>
+
+      {/* FDA Info Dialog */}
+      <ServiceInfoDialog
+        open={fdaDialogOpen}
+        onOpenChange={setFdaDialogOpen}
+        mode="fda"
+        serviceId={serviceId}
+        productName={service.product_name}
+        service={service}
+        onSuccess={(updated) => setService((prev) => (prev ? { ...prev, ...updated } : prev))}
+      />
+
+      {/* US Agent Info Dialog */}
+      <ServiceInfoDialog
+        open={agentDialogOpen}
+        onOpenChange={setAgentDialogOpen}
+        mode="agent"
+        serviceId={serviceId}
+        productName={service.product_name}
+        service={service}
+        onSuccess={(updated) => setService((prev) => (prev ? { ...prev, ...updated } : prev))}
+      />
 
       {/* Stage Transition Dialog */}
       {service && targetStage && (
