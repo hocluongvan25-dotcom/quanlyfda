@@ -151,6 +151,19 @@ export const PIPELINE_STAGES: { value: PipelineStage; label: string; description
   },
 ]
 
+// Terminal/end stages accumulate services over time, so they are NOT shown as
+// full Kanban columns. They live in a dedicated paginated archive table instead.
+export const TERMINAL_STAGES: PipelineStage[] = ['completion_handover', 'renewal_support']
+
+// Active "work in progress" stages shown as Kanban columns.
+export const ACTIVE_PIPELINE_STAGES = PIPELINE_STAGES.filter(
+  (s) => !TERMINAL_STAGES.includes(s.value),
+)
+
+export const TERMINAL_PIPELINE_STAGES = PIPELINE_STAGES.filter((s) =>
+  TERMINAL_STAGES.includes(s.value),
+)
+
 export const SERVICE_TYPES: { value: ServiceType; label: string }[] = [
   { value: 'food', label: 'Thực phẩm' },
   { value: 'cosmetics', label: 'Mỹ phẩm' },

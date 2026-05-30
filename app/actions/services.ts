@@ -3,6 +3,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Service, Profile, PipelineStage, ServiceType } from '@/lib/types'
+import { getStageLabel } from '@/lib/types'
 
 // Helper to get current user
 async function getCurrentUser() {
@@ -47,6 +48,110 @@ export async function getServices() {
     return []
   }
   return data as Service[]
+}
+
+const SERVICE_SELECT = `
+  *,
+  client:profiles!services_client_id_fkey(*),
+  assigned_staff:profiles!services_assigned_staff_id_fkey(*)
+`
+
+// Fetch a single Kanban column's services with server-side pagination + an exact
+// total count. Used by the board so we only ever transfer a small batch per
+// column instead of every service for every client.
+export async function getPipelineServices(params: {
+  stage: PipelineStage
+  serviceTypes?: ServiceType[]
+  limit?: number
+  offset?: number
+}): Promise<{ services: Service[]; total: number }> {
+  const supabase = await createClient()
+  const { stage, serviceTypes, limit = 15, offset = 0 } = params
+
+  let query = supabase
+    .from('services')
+    .select(SERVICE_SELECT, { count: 'exact' })
+    .eq('current_stage', stage)
+    .order('updated_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  // Only constrain by type when a real subset is selected.
+  if (serviceTypes && serviceTypes.length > 0 && serviceTypes.length < 3) {
+    query = query.in('service_type', serviceTypes)
+  }
+
+  const { data, error, count } = await query
+  if (error) {
+    console.error('[v0] Error fetching pipeline services:', error)
+    return { services: [], total: 0 }
+  }
+  return { services: (data ?? []) as Service[], total: count ?? 0 }
+}
+
+// Lightweight count-only query for a stage (used for terminal columns where we
+// show a tally instead of a card list).
+export async function getStageCount(
+  stage: PipelineStage,
+  serviceTypes?: ServiceType[],
+): Promise<number> {
+  const supabase = await createClient()
+  let query = supabase
+    .from('services')
+    .select('id', { count: 'exact', head: true })
+    .eq('current_stage', stage)
+
+  if (serviceTypes && serviceTypes.length > 0 && serviceTypes.length < 3) {
+    query = query.in('service_type', serviceTypes)
+  }
+
+  const { count, error } = await query
+  if (error) {
+    console.error('[v0] Error counting stage services:', error)
+    return 0
+  }
+  return count ?? 0
+}
+
+// Paginated + searchable list of services for the archive/completed table.
+// Accepts one or more stages (e.g. the terminal stages) plus optional filters.
+export async function getArchivedServices(params: {
+  stages: PipelineStage[]
+  serviceTypes?: ServiceType[]
+  search?: string
+  page?: number
+  pageSize?: number
+}): Promise<{ services: Service[]; total: number }> {
+  const supabase = await createClient()
+  const { stages, serviceTypes, search, page = 1, pageSize = 20 } = params
+
+  if (!stages.length) return { services: [], total: 0 }
+
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+
+  let query = supabase
+    .from('services')
+    .select(SERVICE_SELECT, { count: 'exact' })
+    .in('current_stage', stages)
+    .order('updated_at', { ascending: false })
+    .range(from, to)
+
+  if (serviceTypes && serviceTypes.length > 0 && serviceTypes.length < 3) {
+    query = query.in('service_type', serviceTypes)
+  }
+
+  if (search && search.trim()) {
+    const term = `%${search.trim()}%`
+    // Match product name or FDA code.
+    query = query.or(`product_name.ilike.${term},fda_code.ilike.${term}`)
+  }
+
+  const { data, error, count } = await query
+  if (error) {
+    console.error('[v0] Error fetching archived services:', error)
+    return { services: [], total: 0 }
+  }
+  return { services: (data ?? []) as Service[], total: count ?? 0 }
 }
 
 // Get single service by ID
@@ -149,18 +254,10 @@ export async function updateServiceStage(serviceId: string, stage: PipelineStage
     const { sendEmail, emailTemplates } = await import('@/lib/email')
     
     if (currentService.client?.email) {
-      const stageLabels: Record<PipelineStage, string> = {
-        'intake_consultation': 'Tiếp nhận & Tư vấn',
-        'dossier_collection': 'Thu thập Hồ sơ',
-        'us_agent_assignment': 'Chỉ định US Agent',
-        'fda_registration': 'Đăng ký FDA',
-        'monitoring_updates': 'Theo dõi & Cập nhật',
-        'completion_handover': 'Hoàn tất & Bàn giao',
-        'renewal_support': 'Hỗ trợ Gia hạn',
-      }
-
-      const fromStage = stageLabels[currentService.current_stage] || currentService.current_stage
-      const toStage = stageLabels[stage] || stage
+      // Use the single source of truth for stage labels (lib/types) so the
+      // email shows friendly Vietnamese names instead of raw stage codes.
+      const fromStage = getStageLabel(currentService.current_stage)
+      const toStage = getStageLabel(stage)
 
       const emailTemplate = emailTemplates.serviceStageChanged(
         currentService.product_name,
@@ -628,6 +725,52 @@ export async function getStaffMembers() {
   return data as Profile[]
 }
 
+// App base URL used for the password-setup redirect.
+function getAppUrl() {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    'https://quanlyfda.vercel.app'
+  ).replace(/\/$/, '')
+}
+
+// Generate a Supabase recovery link for a freshly created user and email it via
+// our own SMTP (lib/email). generateLink does not send any email by itself, so
+// we are in full control of delivery. Errors are surfaced as warnings: the
+// account already exists, the admin can re-send the email later if needed.
+async function sendSetPasswordEmail(
+  admin: ReturnType<typeof createAdminClient>,
+  opts: { email: string; fullName?: string; roleLabel?: string },
+) {
+  try {
+    const redirectTo = `${getAppUrl()}/auth/update-password`
+
+    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+      type: 'recovery',
+      email: opts.email,
+      options: { redirectTo },
+    })
+
+    if (linkError || !linkData?.properties?.action_link) {
+      console.error('[v0] Error generating set-password link:', linkError)
+      return
+    }
+
+    const { sendEmail, emailTemplates } = await import('@/lib/email')
+    const template = emailTemplates.setPassword({
+      fullName: opts.fullName,
+      email: opts.email,
+      actionLink: linkData.properties.action_link,
+      roleLabel: opts.roleLabel,
+    })
+
+    await sendEmail({ to: opts.email, subject: template.subject, html: template.html })
+  } catch (emailError) {
+    // Don't throw - the account is created; email delivery is best-effort.
+    console.error('[v0] Error sending set-password email:', emailError)
+  }
+}
+
 // Create a new client profile (admin/staff only)
 export async function createClientProfile(data: {
   email: string
@@ -657,17 +800,19 @@ export async function createClientProfile(data: {
     throw new Error('Failed to create user: ' + authError.message)
   }
 
-  // Create profile with the auth user's ID
+  // Upsert profile with the auth user's ID. A DB trigger may already have
+  // created a row for the new auth user, so we upsert (on conflict id) to
+  // avoid a duplicate key error and fill in the full details.
   const { data: client, error } = await admin
     .from('profiles')
-    .insert({
+    .upsert({
       id: authUser.user.id,
       email: data.email,
       full_name: data.full_name || null,
       company_name: data.company_name || null,
       phone: data.phone || null,
       role: 'client'
-    })
+    }, { onConflict: 'id' })
     .select()
     .single()
 
@@ -678,26 +823,12 @@ export async function createClientProfile(data: {
     throw new Error('Failed to create client: ' + error.message)
   }
 
-  // Send password reset email so user can set their own password
-  try {
-    const { sendEmail, emailTemplates } = await import('@/lib/email')
-    await sendEmail({
-      to: data.email,
-      subject: 'Chào mừng bạn đến với VEXIM GLOBAL - Thiết lập mật khẩu',
-      html: `
-        <h2>Chào mừng bạn đến với VEXIM GLOBAL!</h2>
-        <p>Tài khoản của bạn đã được tạo với email: <strong>${data.email}</strong></p>
-        <p>Vui lòng truy cập link dưới đây để thiết lập mật khẩu:</p>
-        <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://quanlyfda.vercel.app'}/reset-password?email=${encodeURIComponent(data.email)}">Thiết lập mật khẩu</a></p>
-        <p>Hoặc bạn có thể sử dụng chức năng "Quên mật khẩu" trên trang đăng nhập.</p>
-        <br/>
-        <p>Trân trọng,<br/>VEXIM GLOBAL Team</p>
-      `,
-    })
-  } catch (emailError) {
-    console.error('[v0] Error sending welcome email:', emailError)
-    // Don't throw - account is created, email is not critical
-  }
+  // Generate a real Supabase recovery link and email it via our own SMTP so the
+  // user can set their own password. generateLink does NOT send any email itself.
+  await sendSetPasswordEmail(admin, {
+    email: data.email,
+    fullName: data.full_name,
+  })
 
   revalidatePath('/dashboard')
   return client as Profile
@@ -766,15 +897,16 @@ export async function createStaffMember(data: {
     throw new Error('Failed to create user: ' + authError.message)
   }
 
+  // Upsert (on conflict id) in case a DB trigger already created the profile row.
   const { data: staff, error } = await admin
     .from('profiles')
-    .insert({
+    .upsert({
       id: authUser.user.id,
       email: data.email,
       full_name: data.full_name || null,
       phone: data.phone || null,
       role: data.role
-    })
+    }, { onConflict: 'id' })
     .select()
     .single()
 
@@ -784,26 +916,12 @@ export async function createStaffMember(data: {
     throw new Error('Failed to create staff member: ' + error.message)
   }
 
-  // Send welcome email
-  try {
-    const { sendEmail } = await import('@/lib/email')
-    await sendEmail({
-      to: data.email,
-      subject: 'Chào mừng bạn gia nhập VEXIM GLOBAL - Thiết lập mật khẩu',
-      html: `
-        <h2>Chào mừng bạn gia nhập đội ngũ VEXIM GLOBAL!</h2>
-        <p>Tài khoản của bạn đã được tạo với email: <strong>${data.email}</strong></p>
-        <p>Vai trò: <strong>${data.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}</strong></p>
-        <p>Vui lòng truy cập link dưới đây để thiết lập mật khẩu:</p>
-        <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://quanlyfda.vercel.app'}/reset-password?email=${encodeURIComponent(data.email)}">Thiết lập mật khẩu</a></p>
-        <p>Hoặc bạn có thể sử dụng chức năng "Quên mật khẩu" trên trang đăng nhập.</p>
-        <br/>
-        <p>Trân trọng,<br/>VEXIM GLOBAL Team</p>
-      `,
-    })
-  } catch (emailError) {
-    console.error('[v0] Error sending welcome email:', emailError)
-  }
+  // Generate a real Supabase recovery link and email it via our own SMTP.
+  await sendSetPasswordEmail(admin, {
+    email: data.email,
+    fullName: data.full_name,
+    roleLabel: data.role === 'admin' ? 'Quản trị viên' : 'Nhân viên',
+  })
 
   revalidatePath('/dashboard/users')
   return staff as Profile
@@ -811,10 +929,11 @@ export async function createStaffMember(data: {
 
 // Delete user (admin only)
 export async function deleteUser(userId: string) {
-  const supabase = await createClient()
+  // The Admin API (deleteUser) requires the service role key, so use the admin client.
+  const admin = createAdminClient()
   
   // Delete profile first
-  const { error: profileError } = await supabase
+  const { error: profileError } = await admin
     .from('profiles')
     .delete()
     .eq('id', userId)
@@ -825,7 +944,7 @@ export async function deleteUser(userId: string) {
   }
 
   // Delete auth user
-  const { error: authError } = await supabase.auth.admin.deleteUser(userId)
+  const { error: authError } = await admin.auth.admin.deleteUser(userId)
   
   if (authError) {
     console.error('[v0] Error deleting auth user:', authError)
