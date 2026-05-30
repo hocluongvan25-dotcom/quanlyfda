@@ -217,12 +217,20 @@ interface FdaInfo {
   fda_fei_code: string
 }
 
+// US Agent Info for us_agent_confirmation stage
+interface UsAgentInfo {
+  us_agent_name: string
+  us_agent_start_date: string
+  us_agent_expiry_date: string
+}
+
 // Update service stage
 export async function updateServiceStage(
   serviceId: string, 
   stage: PipelineStage, 
   note?: string,
-  fdaInfo?: FdaInfo
+  fdaInfo?: FdaInfo,
+  usAgentInfo?: UsAgentInfo
 ) {
   const supabase = await createClient()
   const user = await getCurrentUser()
@@ -257,6 +265,13 @@ export async function updateServiceStage(
     updatePayload.fda_fei_code = fdaInfo.fda_fei_code
   }
 
+  // Add US Agent info if provided (for us_agent_confirmation stage)
+  if (usAgentInfo && stage === 'us_agent_confirmation') {
+    updatePayload.us_agent_name = usAgentInfo.us_agent_name
+    updatePayload.us_agent_start_date = usAgentInfo.us_agent_start_date
+    updatePayload.us_agent_expiry_date = usAgentInfo.us_agent_expiry_date
+  }
+
   const { error } = await supabase
     .from('services')
     .update(updatePayload)
@@ -270,7 +285,7 @@ export async function updateServiceStage(
   // Get current user profile for logging
   const currentProfile = await getCurrentProfile()
 
-  // Log activity with note and FDA info
+  // Log activity with note, FDA info and US Agent info
   await supabase.from('activity_logs').insert({
     service_id: serviceId,
     user_id: user.id,
@@ -279,7 +294,8 @@ export async function updateServiceStage(
       new_stage: stage,
       note: note || null,
       staff_name: currentProfile.full_name || currentProfile.email,
-      fda_info: fdaInfo || null
+      fda_info: fdaInfo || null,
+      us_agent_info: usAgentInfo || null
     }
   })
 
@@ -298,7 +314,8 @@ export async function updateServiceStage(
         fromStage,
         toStage,
         note,
-        fdaInfo
+        fdaInfo,
+        usAgentInfo
       )
 
       await sendEmail({

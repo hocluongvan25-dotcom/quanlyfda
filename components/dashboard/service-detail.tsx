@@ -656,6 +656,12 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
                     <p className="text-xs text-muted-foreground">Tên US Agent</p>
                     <p className="text-sm text-foreground">{service.us_agent_name}</p>
                   </div>
+                  {service.us_agent_start_date && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Ngày bắt đầu</p>
+                      <p className="text-sm text-foreground">{formatDate(service.us_agent_start_date)}</p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-xs text-muted-foreground">Ngày hết hạn</p>
                     <div className="flex items-center gap-2">
@@ -678,7 +684,7 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
               ) : (
                 <div className="text-center py-4 text-muted-foreground">
                   <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Chưa chỉ định US Agent</p>
+                  <p className="text-sm">Chưa xác nhận US Agent</p>
                 </div>
               )}
             </CardContent>

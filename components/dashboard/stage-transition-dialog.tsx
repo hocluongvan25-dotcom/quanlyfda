@@ -25,6 +25,12 @@ interface FdaInfo {
   fda_fei_code: string
 }
 
+interface UsAgentInfo {
+  us_agent_name: string
+  us_agent_start_date: string
+  us_agent_expiry_date: string
+}
+
 interface StageTransitionDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -54,6 +60,11 @@ export function StageTransitionDialog({
     fda_duns_code: '',
     fda_fei_code: '',
   })
+  const [usAgentInfo, setUsAgentInfo] = useState<UsAgentInfo>({
+    us_agent_name: '',
+    us_agent_start_date: '',
+    us_agent_expiry_date: '',
+  })
 
   const currentStageLabel = PIPELINE_STAGES.find(s => s.value === currentStage)?.label || currentStage
   const targetStageLabel = PIPELINE_STAGES.find(s => s.value === targetStage)?.label || targetStage
@@ -66,6 +77,8 @@ export function StageTransitionDialog({
 
   // Check if transitioning to completion_handover stage - requires FDA info
   const requiresFdaInfo = targetStage === 'completion_handover'
+  // Check if transitioning to us_agent_confirmation stage - requires US Agent info
+  const requiresUsAgentInfo = targetStage === 'us_agent_confirmation'
 
   const validateForm = (): string | null => {
     if (!note.trim()) {
@@ -96,6 +109,23 @@ export function StageTransitionDialog({
       }
     }
     
+    if (requiresUsAgentInfo) {
+      if (!usAgentInfo.us_agent_name.trim()) {
+        return 'Vui lòng nhập tên US Agent'
+      }
+      if (!usAgentInfo.us_agent_start_date) {
+        return 'Vui lòng nhập ngày bắt đầu US Agent'
+      }
+      if (!usAgentInfo.us_agent_expiry_date) {
+        return 'Vui lòng nhập ngày hết hạn US Agent'
+      }
+      const startDate = new Date(usAgentInfo.us_agent_start_date)
+      const expiryDate = new Date(usAgentInfo.us_agent_expiry_date)
+      if (expiryDate <= startDate) {
+        return 'Ngày hết hạn US Agent phải sau ngày bắt đầu'
+      }
+    }
+
     return null
   }
 
@@ -114,11 +144,13 @@ export function StageTransitionDialog({
         serviceId, 
         targetStage, 
         note.trim(),
-        requiresFdaInfo ? fdaInfo : undefined
+        requiresFdaInfo ? fdaInfo : undefined,
+        requiresUsAgentInfo ? usAgentInfo : undefined
       )
       // Reset form
       setNote('')
       setFdaInfo({ fda_code: '', fda_issue_date: '', fda_expiry_date: '', fda_duns_code: '', fda_fei_code: '' })
+      setUsAgentInfo({ us_agent_name: '', us_agent_start_date: '', us_agent_expiry_date: '' })
       onOpenChange(false)
       onSuccess?.()
     } catch (err) {
@@ -129,13 +161,19 @@ export function StageTransitionDialog({
     }
   }
 
-  const isFormValid = note.trim() && (!requiresFdaInfo || (
-    fdaInfo.fda_code.trim() && 
-    fdaInfo.fda_duns_code.trim() &&
-    fdaInfo.fda_fei_code.trim() &&
-    fdaInfo.fda_issue_date && 
-    fdaInfo.fda_expiry_date
-  ))
+  const isFormValid = note.trim() && 
+    (!requiresFdaInfo || (
+      fdaInfo.fda_code.trim() && 
+      fdaInfo.fda_duns_code.trim() &&
+      fdaInfo.fda_fei_code.trim() &&
+      fdaInfo.fda_issue_date && 
+      fdaInfo.fda_expiry_date
+    )) &&
+    (!requiresUsAgentInfo || (
+      usAgentInfo.us_agent_name.trim() &&
+      usAgentInfo.us_agent_start_date &&
+      usAgentInfo.us_agent_expiry_date
+    ))
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -228,6 +266,54 @@ export function StageTransitionDialog({
 
               <p className="text-xs text-muted-foreground">
                 Thông tin FDA sẽ được lưu vào hồ sơ dịch vụ và gửi cho khách hàng
+              </p>
+            </div>
+          )}
+
+          {/* US Agent Info Fields - Only show when transitioning to us_agent_confirmation */}
+          {requiresUsAgentInfo && (
+            <div className="space-y-4 p-4 bg-primary/5 rounded-lg border border-primary/20">
+              <div className="flex items-center gap-2 text-primary">
+                <Shield className="h-4 w-4" />
+                <span className="text-sm font-medium">Thông tin US Agent</span>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Tên US Agent <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  placeholder="VD: ABC US Agent LLC"
+                  value={usAgentInfo.us_agent_name}
+                  onChange={(e) => setUsAgentInfo(prev => ({ ...prev, us_agent_name: e.target.value }))}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Ngày bắt đầu <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    type="date"
+                    value={usAgentInfo.us_agent_start_date}
+                    onChange={(e) => setUsAgentInfo(prev => ({ ...prev, us_agent_start_date: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Ngày hết hạn <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    type="date"
+                    value={usAgentInfo.us_agent_expiry_date}
+                    onChange={(e) => setUsAgentInfo(prev => ({ ...prev, us_agent_expiry_date: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Thời hạn US Agent sẽ được ghi nhận và khách hàng sẽ nhận email nhắc gia hạn trước khi hết hạn
               </p>
             </div>
           )}

@@ -5,6 +5,7 @@ export type PipelineStage =
   | 'document_collection'
   | 'expert_review'
   | 'fda_registration'
+  | 'us_agent_confirmation'
   | 'tracking_update'
   | 'completion_handover'
   | 'renewal_support'
@@ -37,6 +38,7 @@ export interface Service {
   fda_duns_code: string | null
   fda_fei_code: string | null
   us_agent_name: string | null
+  us_agent_start_date: string | null
   us_agent_expiry_date: string | null
   notes: string | null
   created_at: string
@@ -135,6 +137,11 @@ export const PIPELINE_STAGES: { value: PipelineStage; label: string; description
     value: 'fda_registration', 
     label: 'Đăng ký FDA',
     description: 'Nộp hồ sơ và hoàn tất đăng ký FDA'
+  },
+  { 
+    value: 'us_agent_confirmation', 
+    label: 'US Agent xác nhận',
+    description: 'Xác nhận US Agent và bắt đầu tính thời hạn dịch vụ'
   },
   { 
     value: 'tracking_update', 
