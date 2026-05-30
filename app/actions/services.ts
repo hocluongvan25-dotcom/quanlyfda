@@ -1,6 +1,6 @@
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Service, Profile, PipelineStage, ServiceType } from '@/lib/types'
 
@@ -635,13 +635,14 @@ export async function createClientProfile(data: {
   company_name?: string
   phone?: string
 }) {
-  const supabase = await createClient()
+  // Use the admin client (service role key) for Admin API + profile insert.
+  const admin = createAdminClient()
   
   // Generate a temporary password
   const tempPassword = crypto.randomUUID().slice(0, 12) + 'Aa1!'
   
   // Create auth user using Supabase Admin API
-  const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+  const { data: authUser, error: authError } = await admin.auth.admin.createUser({
     email: data.email,
     password: tempPassword,
     email_confirm: true, // Auto-confirm email
@@ -657,7 +658,7 @@ export async function createClientProfile(data: {
   }
 
   // Create profile with the auth user's ID
-  const { data: client, error } = await supabase
+  const { data: client, error } = await admin
     .from('profiles')
     .insert({
       id: authUser.user.id,
@@ -673,7 +674,7 @@ export async function createClientProfile(data: {
   if (error) {
     console.error('[v0] Error creating client profile:', error)
     // Try to delete auth user if profile creation fails
-    await supabase.auth.admin.deleteUser(authUser.user.id)
+    await admin.auth.admin.deleteUser(authUser.user.id)
     throw new Error('Failed to create client: ' + error.message)
   }
 
@@ -744,13 +745,14 @@ export async function createStaffMember(data: {
   phone?: string
   role: 'staff' | 'admin'
 }) {
-  const supabase = await createClient()
+  // Use the admin client (service role key) for Admin API + profile insert.
+  const admin = createAdminClient()
   
   // Generate a temporary password
   const tempPassword = crypto.randomUUID().slice(0, 12) + 'Aa1!'
   
   // Create auth user using Supabase Admin API
-  const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+  const { data: authUser, error: authError } = await admin.auth.admin.createUser({
     email: data.email,
     password: tempPassword,
     email_confirm: true,
@@ -764,7 +766,7 @@ export async function createStaffMember(data: {
     throw new Error('Failed to create user: ' + authError.message)
   }
 
-  const { data: staff, error } = await supabase
+  const { data: staff, error } = await admin
     .from('profiles')
     .insert({
       id: authUser.user.id,
@@ -778,7 +780,7 @@ export async function createStaffMember(data: {
 
   if (error) {
     console.error('[v0] Error creating staff profile:', error)
-    await supabase.auth.admin.deleteUser(authUser.user.id)
+    await admin.auth.admin.deleteUser(authUser.user.id)
     throw new Error('Failed to create staff member: ' + error.message)
   }
 
