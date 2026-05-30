@@ -492,33 +492,3 @@ export function KanbanBoard() {
     </div>
   )
 }
-
-// Helper functions
-function getServiceIcon(type: ServiceType) {
-  switch (type) {
-    case 'food':
-      return <Utensils className="h-3 w-3" />
-    case 'cosmetics':
-      return <Sparkles className="h-3 w-3" />
-    case 'medical_device':
-      return <Stethoscope className="h-3 w-3" />
-  }
-}
-
-function getServiceTypeBadgeClass(type: ServiceType): string {
-  switch (type) {
-    case 'food':
-      return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-    case 'cosmetics':
-      return 'bg-fuchsia-500/10 text-fuchsia-400 border-fuchsia-500/30'
-    case 'medical_device':
-      return 'bg-cyan-500/10 text-cyan-400 border-cyan-500/30'
-  }
-}
-
-function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('vi-VN', {
-    month: 'short',
-    day: 'numeric',
-  })
-}
