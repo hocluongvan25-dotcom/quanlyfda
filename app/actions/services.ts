@@ -832,10 +832,11 @@ export async function createStaffMember(data: {
 
 // Delete user (admin only)
 export async function deleteUser(userId: string) {
-  const supabase = await createClient()
+  // The Admin API (deleteUser) requires the service role key, so use the admin client.
+  const admin = createAdminClient()
   
   // Delete profile first
-  const { error: profileError } = await supabase
+  const { error: profileError } = await admin
     .from('profiles')
     .delete()
     .eq('id', userId)
@@ -846,7 +847,7 @@ export async function deleteUser(userId: string) {
   }
 
   // Delete auth user
-  const { error: authError } = await supabase.auth.admin.deleteUser(userId)
+  const { error: authError } = await admin.auth.admin.deleteUser(userId)
   
   if (authError) {
     console.error('[v0] Error deleting auth user:', authError)
