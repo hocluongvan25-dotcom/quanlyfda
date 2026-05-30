@@ -3,6 +3,7 @@
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Service, Profile, PipelineStage, ServiceType } from '@/lib/types'
+import { getStageLabel } from '@/lib/types'
 
 // Helper to get current user
 async function getCurrentUser() {
@@ -149,18 +150,10 @@ export async function updateServiceStage(serviceId: string, stage: PipelineStage
     const { sendEmail, emailTemplates } = await import('@/lib/email')
     
     if (currentService.client?.email) {
-      const stageLabels: Record<PipelineStage, string> = {
-        'intake_consultation': 'Tiếp nhận & Tư vấn',
-        'dossier_collection': 'Thu thập Hồ sơ',
-        'us_agent_assignment': 'Chỉ định US Agent',
-        'fda_registration': 'Đăng ký FDA',
-        'monitoring_updates': 'Theo dõi & Cập nhật',
-        'completion_handover': 'Hoàn tất & Bàn giao',
-        'renewal_support': 'Hỗ trợ Gia hạn',
-      }
-
-      const fromStage = stageLabels[currentService.current_stage] || currentService.current_stage
-      const toStage = stageLabels[stage] || stage
+      // Use the single source of truth for stage labels (lib/types) so the
+      // email shows friendly Vietnamese names instead of raw stage codes.
+      const fromStage = getStageLabel(currentService.current_stage)
+      const toStage = getStageLabel(stage)
 
       const emailTemplate = emailTemplates.serviceStageChanged(
         currentService.product_name,
