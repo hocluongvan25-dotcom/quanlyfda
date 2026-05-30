@@ -158,7 +158,13 @@ export const emailTemplates = {
     }),
   }),
 
-  serviceStageChanged: (productName: string, fromStageLabel: string, toStageLabel: string, note?: string) => ({
+  serviceStageChanged: (
+    productName: string, 
+    fromStageLabel: string, 
+    toStageLabel: string, 
+    note?: string,
+    fdaInfo?: { fda_code: string; fda_issue_date: string; fda_expiry_date: string }
+  ) => ({
     subject: `Cập nhật dịch vụ: "${productName}" chuyển sang "${toStageLabel}"`,
     html: layout({
       title: 'Cập nhật trạng thái dịch vụ',
@@ -168,6 +174,14 @@ export const emailTemplates = {
           infoRow('Giai đoạn trước', fromStageLabel) +
           infoRow('Giai đoạn hiện tại', toStageLabel)
         )}
+        ${fdaInfo ? `
+        <h3 style="margin:16px 0 8px;font-size:14px;color:#0f766e;">Thông tin FDA đã được cấp:</h3>
+        ${infoTable(
+          infoRow('Mã đăng ký FDA', fdaInfo.fda_code) +
+          infoRow('Ngày cấp', new Date(fdaInfo.fda_issue_date).toLocaleDateString('vi-VN')) +
+          infoRow('Ngày hết hạn', new Date(fdaInfo.fda_expiry_date).toLocaleDateString('vi-VN'))
+        )}
+        ` : ''}
         ${note ? `
         <h3 style="margin:16px 0 8px;font-size:14px;color:#0f766e;">Thông tin từ nhân viên:</h3>
         <div style="background:#f8fafc;border-left:4px solid #0f766e;padding:12px;border-radius:4px;">
