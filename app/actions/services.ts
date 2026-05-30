@@ -299,7 +299,64 @@ export async function deleteTask(taskId: string) {
   revalidatePath('/dashboard')
 }
 
-// Get documents for a service
+// Update service stage (for drag and drop)
+export async function updateServiceStage(serviceId: string, newStage: PipelineStage) {
+  const profile = await getCurrentProfile()
+  
+  // Only admin and staff can update service stage
+  if (profile.role !== 'admin' && profile.role !== 'staff') {
+    throw new Error('Unauthorized: Only admin and staff can update service stage')
+  }
+  
+  const supabase = await createClient()
+  
+  // Get current stage for activity log
+  const { data: currentService } = await supabase
+    .from('services')
+    .select('current_stage')
+    .eq('id', serviceId)
+    .single()
+  
+  // Update service stage
+  const { error: updateError } = await supabase
+    .from('services')
+    .update({ 
+      current_stage: newStage,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', serviceId)
+
+  if (updateError) {
+    console.error('[v0] Error updating service stage:', updateError)
+    throw new Error('Failed to update service stage')
+  }
+
+  // Log activity
+  try {
+    const { data: stageLabel } = await supabase
+      .from('services')
+      .select('current_stage')
+      .eq('id', serviceId)
+      .single()
+    
+    await supabase
+      .from('activity_logs')
+      .insert({
+        service_id: serviceId,
+        action: 'stage_changed',
+        details: {
+          from_stage: currentService?.current_stage,
+          to_stage: newStage
+        },
+        performed_by: profile.id
+      })
+  } catch (error) {
+    console.error('[v0] Error logging activity:', error)
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/pipeline')
+  return { success: true }
 export async function getServiceDocuments(serviceId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
