@@ -108,6 +108,21 @@ export async function updateServiceStage(serviceId: string, stage: PipelineStage
   const supabase = await createClient()
   const user = await getCurrentUser()
   
+  // Get current service info
+  const { data: currentService, error: fetchError } = await supabase
+    .from('services')
+    .select(`
+      *,
+      client:profiles!services_client_id_fkey(email, full_name)
+    `)
+    .eq('id', serviceId)
+    .single()
+
+  if (fetchError || !currentService) {
+    console.error('[v0] Error fetching service:', fetchError)
+    throw new Error('Service not found')
+  }
+
   const { error } = await supabase
     .from('services')
     .update({ 
@@ -128,6 +143,41 @@ export async function updateServiceStage(serviceId: string, stage: PipelineStage
     action: 'stage_updated',
     details: { new_stage: stage }
   })
+
+  // Send email to client if email is configured
+  try {
+    const { sendEmail, emailTemplates } = await import('@/lib/email')
+    
+    if (currentService.client?.email) {
+      const stageLabels: Record<PipelineStage, string> = {
+        'intake_consultation': 'Tiếp nhận & Tư vấn',
+        'dossier_collection': 'Thu thập Hồ sơ',
+        'us_agent_assignment': 'Chỉ định US Agent',
+        'fda_registration': 'Đăng ký FDA',
+        'monitoring_updates': 'Theo dõi & Cập nhật',
+        'completion_handover': 'Hoàn tất & Bàn giao',
+        'renewal_support': 'Hỗ trợ Gia hạn',
+      }
+
+      const fromStage = stageLabels[currentService.current_stage] || currentService.current_stage
+      const toStage = stageLabels[stage] || stage
+
+      const emailTemplate = emailTemplates.serviceStageChanged(
+        currentService.product_name,
+        fromStage,
+        toStage
+      )
+
+      await sendEmail({
+        to: currentService.client.email,
+        subject: emailTemplate.subject,
+        html: emailTemplate.html,
+      })
+    }
+  } catch (emailError) {
+    console.error('[v0] Error sending stage change email:', emailError)
+    // Don't throw - email is not critical, continue with the update
+  }
 
   revalidatePath('/dashboard')
   revalidatePath('/dashboard/pipeline')

@@ -40,6 +40,7 @@ import { UploadDocumentDialog } from './upload-document-dialog'
 import { RenewalRequestDialog } from './renewal-request-dialog'
 import { CreateTaskDialog } from './create-task-dialog'
 import { deleteTask, getProfile } from '@/app/actions/services'
+import { StageTransitionDialog } from './stage-transition-dialog'
 import type { Profile } from '@/lib/types'
 import {
   DropdownMenu,
@@ -109,6 +110,8 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [showRenewalRequest, setShowRenewalRequest] = useState(false)
   const [userProfile, setUserProfile] = useState<Profile | null>(null)
+  const [stageTransitionOpen, setStageTransitionOpen] = useState(false)
+  const [targetStage, setTargetStage] = useState<PipelineStage | null>(null)
 
   const isStaffOrAdmin = userProfile?.role === 'admin' || userProfile?.role === 'staff'
 
@@ -308,14 +311,23 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
               {PIPELINE_STAGES.map((stage, index) => {
                 const isCompleted = currentStageIndex > index
                 const isCurrent = currentStageIndex === index
+                const isClickable = isStaffOrAdmin && index !== currentStageIndex
 
                 return (
                   <div
                     key={stage.value}
                     className="flex flex-col items-center"
+                    onClick={() => {
+                      if (isClickable) {
+                        setTargetStage(stage.value)
+                        setStageTransitionOpen(true)
+                      }
+                    }}
                   >
                     <div
                       className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-colors ${
+                        isClickable ? 'cursor-pointer hover:shadow-md hover:border-primary/60' : ''
+                      } ${
                         isCompleted
                           ? 'bg-primary border-primary text-primary-foreground'
                           : isCurrent
@@ -332,7 +344,7 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
                     <span
                       className={`mt-2 text-xs text-center max-w-[80px] ${
                         isCurrent ? 'text-primary font-medium' : 'text-muted-foreground'
-                      }`}
+                      } ${isClickable ? 'cursor-pointer hover:text-primary' : ''}`}
                     >
                       {stage.label}
                     </span>
@@ -737,6 +749,22 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
           </Card>
         </div>
       </div>
+
+      {/* Stage Transition Dialog */}
+      {service && targetStage && (
+        <StageTransitionDialog
+          open={stageTransitionOpen}
+          onOpenChange={setStageTransitionOpen}
+          serviceId={serviceId}
+          currentStage={service.current_stage}
+          targetStage={targetStage}
+          productName={service.product_name}
+          onSuccess={() => {
+            // Reload service data
+            window.location.reload()
+          }}
+        />
+      )}
     </div>
   )
 }
