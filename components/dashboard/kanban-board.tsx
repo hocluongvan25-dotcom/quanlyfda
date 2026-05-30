@@ -1,6 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import {
+  DragDropContext,
+  Droppable,
+  Draggable,
+  type DropResult,
+} from '@hello-pangea/dnd'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -33,6 +39,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { createClient } from '@/lib/supabase/client'
+import { updateServiceStage } from '@/app/actions/services'
 
 function getServiceIcon(type: string) {
   switch (type) {
@@ -181,6 +188,7 @@ export function KanbanBoard() {
   const [services, setServices] = useState<Service[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [filterTypes, setFilterTypes] = useState<ServiceType[]>(['food', 'cosmetics', 'medical_device'])
+  const [isDragging, setIsDragging] = useState(false)
 
   useEffect(() => {
     async function fetchServices() {
@@ -209,6 +217,58 @@ export function KanbanBoard() {
 
   const getServicesForStage = (stageValue: PipelineStage) => {
     return filteredServices.filter(s => s.current_stage === stageValue)
+  }
+
+  const handleDragEnd = async (result: DropResult) => {
+    setIsDragging(false)
+    const { source, destination, draggableId } = result
+
+    // If dropped outside a droppable area
+    if (!destination) {
+      return
+    }
+
+    // If dropped in the same position
+    if (
+      source.droppableId === destination.droppableId &&
+      source.index === destination.index
+    ) {
+      return
+    }
+
+    // Get the service that was dragged
+    const draggedService = services.find(s => s.id === draggableId)
+    if (!draggedService) return
+
+    // Get the destination stage
+    const destinationStage = PIPELINE_STAGES.find(
+      s => s.value === destination.droppableId
+    )
+    if (!destinationStage) return
+
+    // Update the service stage optimistically
+    setServices(prev =>
+      prev.map(s =>
+        s.id === draggableId
+          ? { ...s, current_stage: destinationStage.value as PipelineStage }
+          : s
+      )
+    )
+
+    // Call the server action to update the database
+    try {
+      await updateServiceStage(draggableId, destinationStage.value as PipelineStage)
+    } catch (error) {
+      console.error('[v0] Error updating service stage:', error)
+      // Revert on error
+      setServices(prev =>
+        prev.map(s =>
+          s.id === draggableId
+            ? { ...s, current_stage: draggedService.current_stage }
+            : s
+        )
+      )
+    }
   }
 
   if (isLoading) {
@@ -281,19 +341,153 @@ export function KanbanBoard() {
       </div>
 
       {/* Kanban Board */}
-      <ScrollArea className="w-full whitespace-nowrap">
-        <div className="flex gap-4 pb-4">
-          {PIPELINE_STAGES.map((stage, index) => (
-            <KanbanColumn
-              key={stage.value}
-              stage={stage}
-              services={getServicesForStage(stage.value)}
-              index={index}
-            />
-          ))}
-        </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
+      <DragDropContext
+        onDragEnd={handleDragEnd}
+        onDragStart={() => setIsDragging(true)}
+      >
+        <ScrollArea className="w-full whitespace-nowrap">
+          <div className="flex gap-4 pb-4">
+            {PIPELINE_STAGES.map((stage, index) => (
+              <Droppable key={stage.value} droppableId={stage.value}>
+                {(provided, snapshot) => (
+                  <div
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    className="flex flex-col min-w-[300px] max-w-[300px]"
+                  >
+                    <div className="flex items-center justify-between mb-3 px-1">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/20 text-xs font-medium text-primary">
+                          {index + 1}
+                        </div>
+                        <h3 className="font-medium text-sm text-foreground">{stage.label}</h3>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {getServicesForStage(stage.value).length}
+                      </Badge>
+                    </div>
+
+                    <div
+                      className={`flex-1 space-y-3 p-2 rounded-lg border min-h-[500px] transition-colors ${
+                        snapshot.isDraggingOver
+                          ? 'bg-primary/5 border-primary/30'
+                          : 'bg-card/50 border-border'
+                      }`}
+                    >
+                      {getServicesForStage(stage.value).map((service, serviceIndex) => (
+                        <Draggable
+                          key={service.id}
+                          draggableId={service.id}
+                          index={serviceIndex}
+                        >
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                            >
+                              <Link href={`/dashboard/service/${service.id}`}>
+                                <Card
+                                  className={`bg-secondary/80 border-border hover:bg-secondary transition-all cursor-grab active:cursor-grabbing ${
+                                    snapshot.isDragging
+                                      ? 'shadow-lg ring-2 ring-primary'
+                                      : ''
+                                  }`}
+                                >
+                                  <CardContent className="p-3 space-y-3">
+                                    {/* Type Badge */}
+                                    <div className="flex items-center justify-between">
+                                      <Badge
+                                        variant="outline"
+                                        className={`text-xs ${getServiceTypeBadgeClass(
+                                          service.service_type
+                                        )}`}
+                                      >
+                                        {getServiceIcon(service.service_type)}
+                                        <span className="ml-1">
+                                          {getServiceTypeLabel(service.service_type)}
+                                        </span>
+                                      </Badge>
+                                      <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+
+                                    {/* Service Name */}
+                                    <div>
+                                      <h4 className="font-medium text-sm text-foreground line-clamp-2">
+                                        {service.product_name}
+                                      </h4>
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {service.client?.company_name ||
+                                          service.client?.full_name ||
+                                          'N/A'}
+                                      </p>
+                                    </div>
+
+                                    {/* Progress */}
+                                    <div className="space-y-1">
+                                      <div className="flex justify-between text-xs text-muted-foreground">
+                                        <span>Tiến độ</span>
+                                        <span>{getStageIndex(service.current_stage) + 1}/7</span>
+                                      </div>
+                                      <Progress
+                                        value={
+                                          ((getStageIndex(service.current_stage) + 1) / 7) *
+                                          100
+                                        }
+                                        className="h-1"
+                                      />
+                                    </div>
+
+                                    {/* Meta Info */}
+                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                      {service.assigned_staff && (
+                                        <div className="flex items-center gap-1">
+                                          <User className="h-3 w-3" />
+                                          <span>
+                                            {service.assigned_staff.full_name || 'Staff'}
+                                          </span>
+                                        </div>
+                                      )}
+                                      <div className="flex items-center gap-1">
+                                        <Calendar className="h-3 w-3" />
+                                        <span>{formatDate(service.updated_at)}</span>
+                                      </div>
+                                    </div>
+
+                                    {/* FDA Code if available */}
+                                    {service.fda_code && (
+                                      <div className="pt-2 border-t border-border">
+                                        <p className="text-xs font-mono text-primary">
+                                          {service.fda_code}
+                                        </p>
+                                      </div>
+                                    )}
+
+                                    {/* View Arrow */}
+                                    <div className="flex justify-end">
+                                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              </Link>
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {getServicesForStage(stage.value).length === 0 && (
+                        <div className="flex items-center justify-center h-24 text-muted-foreground text-sm">
+                          Không có dịch vụ
+                        </div>
+                      )}
+                      {provided.placeholder}
+                    </div>
+                  </div>
+                )}
+              </Droppable>
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+      </DragDropContext>
     </div>
   )
-}
