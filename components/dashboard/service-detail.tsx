@@ -31,10 +31,22 @@ import {
   Shield,
   ArrowLeft,
   Loader2,
+  Plus,
+  Trash2,
+  MoreVertical,
 } from 'lucide-react'
 import Link from 'next/link'
 import { UploadDocumentDialog } from './upload-document-dialog'
 import { RenewalRequestDialog } from './renewal-request-dialog'
+import { CreateTaskDialog } from './create-task-dialog'
+import { deleteTask, getProfile } from '@/app/actions/services'
+import type { Profile } from '@/lib/types'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 function getServiceIcon(type: string) {
   switch (type) {
@@ -96,10 +108,21 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [showRenewalRequest, setShowRenewalRequest] = useState(false)
+  const [userProfile, setUserProfile] = useState<Profile | null>(null)
+
+  const isStaffOrAdmin = userProfile?.role === 'admin' || userProfile?.role === 'staff'
 
   useEffect(() => {
     async function fetchData() {
       const supabase = createClient()
+      
+      // Fetch user profile
+      try {
+        const profile = await getProfile()
+        setUserProfile(profile)
+      } catch (error) {
+        console.error('[v0] Error fetching profile:', error)
+      }
       
       // Fetch service
       const { data: serviceData, error: serviceError } = await supabase
@@ -337,9 +360,26 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-foreground">Checklist công việc</CardTitle>
-                    <span className="text-sm text-muted-foreground">
-                      {completedTasks}/{totalTasks} hoàn thành
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">
+                        {completedTasks}/{totalTasks} hoàn thành
+                      </span>
+                      {isStaffOrAdmin && (
+                        <CreateTaskDialog
+                          serviceId={serviceId}
+                          currentStage={service.current_stage}
+                          onTaskCreated={(newTask) => {
+                            setTasks(prev => [...prev, newTask])
+                          }}
+                          trigger={
+                            <Button variant="outline" size="sm" className="gap-1">
+                              <Plus className="h-4 w-4" />
+                              Thêm
+                            </Button>
+                          }
+                        />
+                      )}
+                    </div>
                   </div>
                   <Progress value={progress} className="h-2" />
                 </CardHeader>
@@ -348,29 +388,81 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
                     <div className="text-center py-8 text-muted-foreground">
                       <CheckCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
                       <p className="text-sm">Chưa có checklist</p>
+                      {isStaffOrAdmin && (
+                        <p className="text-xs mt-2">Nhấn &quot;Thêm&quot; để tạo công việc mới</p>
+                      )}
                     </div>
                   ) : (
                     tasks.map((task) => (
                       <div
                         key={task.id}
-                        className={`flex items-center gap-3 p-3 rounded-lg cursor-pointer ${
+                        className={`flex items-center justify-between p-3 rounded-lg ${
                           task.is_completed ? 'bg-success/10' : 'bg-secondary'
                         }`}
-                        onClick={() => toggleTask(task.id, task.is_completed)}
                       >
-                        <Checkbox
-                          checked={task.is_completed}
-                          className="data-[state=checked]:bg-success data-[state=checked]:border-success"
-                        />
-                        <span
-                          className={`text-sm ${
-                            task.is_completed
-                              ? 'text-muted-foreground line-through'
-                              : 'text-foreground'
-                          }`}
+                        <div 
+                          className="flex items-center gap-3 flex-1 cursor-pointer"
+                          onClick={() => toggleTask(task.id, task.is_completed)}
                         >
-                          {task.title}
-                        </span>
+                          <Checkbox
+                            checked={task.is_completed}
+                            className="data-[state=checked]:bg-success data-[state=checked]:border-success"
+                          />
+                          <div className="flex-1">
+                            <span
+                              className={`text-sm ${
+                                task.is_completed
+                                  ? 'text-muted-foreground line-through'
+                                  : 'text-foreground'
+                              }`}
+                            >
+                              {task.title}
+                            </span>
+                            {task.description && (
+                              <p className="text-xs text-muted-foreground mt-1">{task.description}</p>
+                            )}
+                          </div>
+                        </div>
+                        {isStaffOrAdmin && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <CreateTaskDialog
+                                serviceId={serviceId}
+                                currentStage={service.current_stage}
+                                task={task}
+                                onTaskUpdated={(updatedTask) => {
+                                  setTasks(prev => prev.map(t => t.id === updatedTask.id ? updatedTask : t))
+                                }}
+                                trigger={
+                                  <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                                    Sửa
+                                  </DropdownMenuItem>
+                                }
+                              />
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onClick={async () => {
+                                  if (confirm('Bạn có chắc muốn xóa công việc này?')) {
+                                    try {
+                                      await deleteTask(task.id)
+                                      setTasks(prev => prev.filter(t => t.id !== task.id))
+                                    } catch (error) {
+                                      console.error('[v0] Error deleting task:', error)
+                                    }
+                                  }
+                                }}
+                              >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Xóa
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
                       </div>
                     ))
                   )}
