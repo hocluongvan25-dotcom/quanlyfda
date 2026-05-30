@@ -357,6 +357,8 @@ export async function updateServiceStage(serviceId: string, newStage: PipelineSt
   revalidatePath('/dashboard')
   revalidatePath('/dashboard/pipeline')
   return { success: true }
+}
+
 export async function getServiceDocuments(serviceId: string) {
   const supabase = await createClient()
   const { data, error } = await supabase
