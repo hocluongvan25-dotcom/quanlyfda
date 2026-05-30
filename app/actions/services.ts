@@ -202,15 +202,98 @@ export async function createTask(data: {
   description?: string
   sort_order?: number
 }) {
+  const profile = await getCurrentProfile()
+  
+  // Only admin and staff can create tasks
+  if (profile.role !== 'admin' && profile.role !== 'staff') {
+    throw new Error('Unauthorized: Only admin and staff can create tasks')
+  }
+  
   const supabase = await createClient()
   
-  const { error } = await supabase
+  // Get the max sort_order for this service and stage
+  const { data: existingTasks } = await supabase
     .from('pipeline_tasks')
-    .insert(data)
+    .select('sort_order')
+    .eq('service_id', data.service_id)
+    .eq('stage', data.stage)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+  
+  const nextSortOrder = existingTasks && existingTasks.length > 0 
+    ? (existingTasks[0].sort_order || 0) + 1 
+    : 1
+  
+  const { data: task, error } = await supabase
+    .from('pipeline_tasks')
+    .insert({
+      ...data,
+      sort_order: data.sort_order ?? nextSortOrder
+    })
+    .select()
+    .single()
 
   if (error) {
     console.error('[v0] Error creating task:', error)
     throw new Error('Failed to create task')
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath(`/dashboard/service/${data.service_id}`)
+  return task
+}
+
+// Update task
+export async function updateTask(taskId: string, data: {
+  title?: string
+  description?: string
+  stage?: PipelineStage
+  sort_order?: number
+}) {
+  const profile = await getCurrentProfile()
+  
+  // Only admin and staff can update tasks
+  if (profile.role !== 'admin' && profile.role !== 'staff') {
+    throw new Error('Unauthorized: Only admin and staff can update tasks')
+  }
+  
+  const supabase = await createClient()
+  
+  const { data: task, error } = await supabase
+    .from('pipeline_tasks')
+    .update(data)
+    .eq('id', taskId)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('[v0] Error updating task:', error)
+    throw new Error('Failed to update task')
+  }
+
+  revalidatePath('/dashboard')
+  return task
+}
+
+// Delete task
+export async function deleteTask(taskId: string) {
+  const profile = await getCurrentProfile()
+  
+  // Only admin and staff can delete tasks
+  if (profile.role !== 'admin' && profile.role !== 'staff') {
+    throw new Error('Unauthorized: Only admin and staff can delete tasks')
+  }
+  
+  const supabase = await createClient()
+  
+  const { error } = await supabase
+    .from('pipeline_tasks')
+    .delete()
+    .eq('id', taskId)
+
+  if (error) {
+    console.error('[v0] Error deleting task:', error)
+    throw new Error('Failed to delete task')
   }
 
   revalidatePath('/dashboard')
