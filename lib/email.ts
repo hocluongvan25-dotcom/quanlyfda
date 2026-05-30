@@ -83,4 +83,19 @@ export const emailTemplates = {
       <p>Please review it in your dashboard.</p>
     `,
   }),
+
+  serviceStageChanged: (productName: string, fromStage: string, toStage: string) => ({
+    subject: `Service Update: ${productName} moved to ${toStage}`,
+    html: `
+      <h2>Service Status Update</h2>
+      <p>Your service <strong>${productName}</strong> has been updated:</p>
+      <ul>
+        <li><strong>Previous Stage:</strong> ${fromStage}</li>
+        <li><strong>Current Stage:</strong> ${toStage}</li>
+      </ul>
+      <p>Please log in to your dashboard for more details.</p>
+      <br/>
+      <p>Best regards,<br/>VEXIM GLOBAL Team</p>
+    `,
+  }),
 }
