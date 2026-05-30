@@ -209,7 +209,7 @@ export async function createService(data: {
 }
 
 // Update service stage
-export async function updateServiceStage(serviceId: string, stage: PipelineStage) {
+export async function updateServiceStage(serviceId: string, stage: PipelineStage, note?: string) {
   const supabase = await createClient()
   const user = await getCurrentUser()
   
@@ -241,12 +241,19 @@ export async function updateServiceStage(serviceId: string, stage: PipelineStage
     throw new Error('Failed to update service stage')
   }
 
-  // Log activity
+  // Get current user profile for logging
+  const currentProfile = await getCurrentProfile()
+
+  // Log activity with note
   await supabase.from('activity_logs').insert({
     service_id: serviceId,
     user_id: user.id,
     action: 'stage_updated',
-    details: { new_stage: stage }
+    details: { 
+      new_stage: stage,
+      note: note || null,
+      staff_name: currentProfile.full_name || currentProfile.email
+    }
   })
 
   // Send email to client if email is configured
@@ -262,7 +269,8 @@ export async function updateServiceStage(serviceId: string, stage: PipelineStage
       const emailTemplate = emailTemplates.serviceStageChanged(
         currentService.product_name,
         fromStage,
-        toStage
+        toStage,
+        note
       )
 
       await sendEmail({
@@ -277,7 +285,7 @@ export async function updateServiceStage(serviceId: string, stage: PipelineStage
   }
 
   revalidatePath('/dashboard')
-  revalidatePath('/dashboard/pipeline')
+  revalidatePath('/dashboard/service')
   revalidatePath(`/dashboard/service/${serviceId}`)
 }
 

@@ -3,7 +3,7 @@ export type ServiceType = 'food' | 'cosmetics' | 'medical_device'
 export type PipelineStage = 
   | 'reception_consultation'
   | 'document_collection'
-  | 'us_agent_assignment'
+  | 'expert_review'
   | 'fda_registration'
   | 'tracking_update'
   | 'completion_handover'
@@ -125,9 +125,9 @@ export const PIPELINE_STAGES: { value: PipelineStage; label: string; description
     description: 'Thu thập và kiểm tra các tài liệu cần thiết'
   },
   { 
-    value: 'us_agent_assignment', 
-    label: 'Chỉ định US Agent',
-    description: 'Chỉ định và đăng ký US Agent cho khách hàng'
+    value: 'expert_review', 
+    label: 'Chuyên gia review',
+    description: 'Review chuyên gia trong quá trình đăng ký FDA'
   },
   { 
     value: 'fda_registration', 

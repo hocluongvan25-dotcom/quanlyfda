@@ -158,7 +158,7 @@ export const emailTemplates = {
     }),
   }),
 
-  serviceStageChanged: (productName: string, fromStageLabel: string, toStageLabel: string) => ({
+  serviceStageChanged: (productName: string, fromStageLabel: string, toStageLabel: string, note?: string) => ({
     subject: `Cập nhật dịch vụ: "${productName}" chuyển sang "${toStageLabel}"`,
     html: layout({
       title: 'Cập nhật trạng thái dịch vụ',
@@ -168,6 +168,12 @@ export const emailTemplates = {
           infoRow('Giai đoạn trước', fromStageLabel) +
           infoRow('Giai đoạn hiện tại', toStageLabel)
         )}
+        ${note ? `
+        <h3 style="margin:16px 0 8px;font-size:14px;color:#0f766e;">Thông tin từ nhân viên:</h3>
+        <div style="background:#f8fafc;border-left:4px solid #0f766e;padding:12px;border-radius:4px;">
+          <p style="margin:0;font-size:14px;line-height:1.6;color:#0f172a;white-space:pre-wrap;">${note}</p>
+        </div>
+        ` : ''}
         <p style="font-size:14px;line-height:1.6;">Vui lòng đăng nhập vào hệ thống để xem thêm chi tiết.</p>
         ${button(`${getAppUrl()}/dashboard`, 'Xem chi tiết')}
       `,

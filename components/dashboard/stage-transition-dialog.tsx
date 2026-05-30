@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Loader2, AlertTriangle } from 'lucide-react'
 import { PIPELINE_STAGES, type PipelineStage } from '@/lib/types'
 import { updateServiceStage } from '@/app/actions/services'
+import { Textarea } from '@/components/ui/textarea'
 
 interface StageTransitionDialogProps {
   open: boolean
@@ -36,6 +37,7 @@ export function StageTransitionDialog({
 }: StageTransitionDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [note, setNote] = useState('')
 
   const currentStageLabel = PIPELINE_STAGES.find(s => s.value === currentStage)?.label || currentStage
   const targetStageLabel = PIPELINE_STAGES.find(s => s.value === targetStage)?.label || targetStage
@@ -47,11 +49,16 @@ export function StageTransitionDialog({
   const isMovingBackward = targetStageIndex < currentStageIndex
 
   const handleConfirm = async () => {
+    if (!note.trim()) {
+      setError('Vui lòng nhập ghi chú trước khi chuyển giai đoạn')
+      return
+    }
+
     setIsLoading(true)
     setError(null)
 
     try {
-      await updateServiceStage(serviceId, targetStage)
+      await updateServiceStage(serviceId, targetStage, note.trim())
       onOpenChange(false)
       onSuccess?.()
     } catch (err) {
@@ -64,7 +71,7 @@ export function StageTransitionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[450px]">
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Xác nhận chuyển giai đoạn</DialogTitle>
           <DialogDescription>
@@ -84,6 +91,23 @@ export function StageTransitionDialog({
               <p className="text-xs text-muted-foreground">Giai đoạn mới</p>
               <p className="font-medium text-foreground">{targetStageLabel}</p>
             </div>
+          </div>
+
+          {/* Note field */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">
+              Ghi chú <span className="text-destructive">*</span>
+            </label>
+            <Textarea
+              placeholder="Nhập ghi chú cho khách hàng..."
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="resize-none"
+              rows={4}
+            />
+            <p className="text-xs text-muted-foreground">
+              Ghi chú này sẽ được gửi trong email thông báo tới khách hàng
+            </p>
           </div>
 
           {/* Warnings */}
@@ -113,10 +137,6 @@ export function StageTransitionDialog({
               </AlertDescription>
             </Alert>
           )}
-
-          <p className="text-sm text-muted-foreground">
-            Email thông báo sẽ được gửi cho khách hàng về sự thay đổi này.
-          </p>
         </div>
 
         <DialogFooter>
@@ -127,7 +147,7 @@ export function StageTransitionDialog({
           >
             Hủy
           </Button>
-          <Button onClick={handleConfirm} disabled={isLoading}>
+          <Button onClick={handleConfirm} disabled={isLoading || !note.trim()}>
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
