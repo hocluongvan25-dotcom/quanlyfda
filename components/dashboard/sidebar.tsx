@@ -13,9 +13,10 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Users,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Tooltip,
   TooltipContent,
@@ -23,11 +24,13 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { createClient } from '@/lib/supabase/client'
+import type { Profile } from '@/lib/types'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Tổng quan' },
   { href: '/dashboard/pipeline', icon: Kanban, label: 'Pipeline' },
   { href: '/dashboard/documents', icon: FileText, label: 'Tài liệu' },
+  { href: '/dashboard/users', icon: Users, label: 'Người dùng', adminOnly: true },
   { href: '/dashboard/notifications', icon: Bell, label: 'Thông báo' },
   { href: '/dashboard/settings', icon: Settings, label: 'Cài đặt' },
 ]
@@ -40,6 +43,23 @@ export function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+  const [profile, setProfile] = useState<Profile | null>(null)
+
+  useEffect(() => {
+    const loadProfile = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
+        setProfile(data)
+      }
+    }
+    loadProfile()
+  }, [])
 
   const handleLogout = async () => {
     const supabase = createClient()
@@ -80,6 +100,11 @@ export function Sidebar() {
           {/* Navigation */}
           <nav className="flex-1 space-y-1 p-2">
             {navItems.map((item) => {
+              // Skip admin-only items for non-admin users
+              if (item.adminOnly && profile?.role !== 'admin') {
+                return null
+              }
+
               const isActive = pathname === item.href || pathname.startsWith(item.href + '/')
               const Icon = item.icon
 

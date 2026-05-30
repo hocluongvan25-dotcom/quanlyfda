@@ -87,8 +87,8 @@ export function Header() {
         </div>
       </div>
 
-      {/* Right Side */}
-      <div className="flex items-center gap-2">
+      {/* Right Side - Notifications & User Menu */}
+      <div className="flex items-center gap-2 ml-auto">
         {/* Notifications */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

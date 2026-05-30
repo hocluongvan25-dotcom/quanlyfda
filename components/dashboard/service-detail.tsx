@@ -33,6 +33,8 @@ import {
   Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
+import { UploadDocumentDialog } from './upload-document-dialog'
+import { RenewalRequestDialog } from './renewal-request-dialog'
 
 function getServiceIcon(type: string) {
   switch (type) {
@@ -92,6 +94,8 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
   const [tasks, setTasks] = useState<PipelineTask[]>([])
   const [documents, setDocuments] = useState<Document[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [uploadOpen, setUploadOpen] = useState(false)
+  const [showRenewalRequest, setShowRenewalRequest] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
@@ -241,8 +245,23 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
         </div>
 
         <div className="flex gap-2">
-          <Button variant="outline">Liên hệ hỗ trợ</Button>
-          <Button>Cập nhật thông tin</Button>
+          <Button 
+            variant="outline"
+            onClick={() => {
+              // Open contact support dialog or navigate to support page
+              window.location.href = '/dashboard/support'
+            }}
+          >
+            Liên hệ hỗ trợ
+          </Button>
+          <Button
+            onClick={() => {
+              // Navigate to edit service page or open edit dialog
+              window.location.href = `/dashboard/service/${serviceId}/edit`
+            }}
+          >
+            Cập nhật thông tin
+          </Button>
         </div>
       </div>
 
@@ -364,10 +383,23 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-foreground">Tài liệu</CardTitle>
-                    <Button size="sm" className="gap-2">
-                      <Upload className="h-4 w-4" />
-                      Tải lên
-                    </Button>
+                    <UploadDocumentDialog 
+                      serviceId={serviceId} 
+                      serviceName={service.product_name}
+                      onUploadComplete={() => {
+                        // Refetch documents
+                        const fetchDocs = async () => {
+                          const supabase = createClient()
+                          const { data: docsData } = await supabase
+                            .from('documents')
+                            .select(`*, uploader:profiles!documents_uploaded_by_fkey(*)`)
+                            .eq('service_id', serviceId)
+                            .order('created_at', { ascending: false })
+                          if (docsData) setDocuments(docsData as Document[])
+                        }
+                        fetchDocs()
+                      }}
+                    />
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
@@ -554,18 +586,61 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
               <CardTitle className="text-foreground">Thao tác nhanh</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start gap-2">
-                <Upload className="h-4 w-4" />
-                Tải lên tài liệu
-              </Button>
-              <Button variant="outline" className="w-full justify-start gap-2">
+              <UploadDocumentDialog
+                serviceId={serviceId}
+                serviceName={service?.product_name}
+                open={uploadOpen}
+                onOpenChange={setUploadOpen}
+                trigger={
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start gap-2"
+                    onClick={() => setUploadOpen(true)}
+                  >
+                    <Upload className="h-4 w-4" />
+                    Tải lên tài liệu
+                  </Button>
+                }
+                onUploadComplete={() => {
+                  // Refresh documents
+                  const fetchDocs = async () => {
+                    const supabase = createClient()
+                    const { data: docsData } = await supabase
+                      .from('documents')
+                      .select('*')
+                      .eq('service_id', serviceId)
+                      .order('created_at', { ascending: false })
+                    if (docsData) setDocuments(docsData)
+                  }
+                  fetchDocs()
+                  setUploadOpen(false)
+                }}
+              />
+              <Button 
+                variant="outline" 
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  // For FDA certificate, we can use the existing document type
+                  setUploadOpen(true)
+                }}
+              >
                 <Download className="h-4 w-4" />
                 Tải chứng nhận FDA
               </Button>
-              <Button variant="outline" className="w-full justify-start gap-2">
+              <Button 
+                variant="outline" 
+                className="w-full justify-start gap-2"
+                onClick={() => setShowRenewalRequest(true)}
+              >
                 <AlertTriangle className="h-4 w-4" />
                 Yêu cầu gia hạn
               </Button>
+              <RenewalRequestDialog
+                open={showRenewalRequest}
+                onOpenChange={setShowRenewalRequest}
+                serviceId={serviceId}
+                productName={service?.product_name || 'Dịch vụ'}
+              />
             </CardContent>
           </Card>
         </div>

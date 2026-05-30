@@ -26,6 +26,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import Link from 'next/link'
+import { UploadDocumentDialog } from './upload-document-dialog'
+import { SelectServiceDialog } from './select-service-dialog'
 
 interface DocumentWithService extends Document {
   service?: {
@@ -144,10 +146,7 @@ export function DocumentsManager() {
               </DropdownMenuCheckboxItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button className="gap-2">
-            <Upload className="h-4 w-4" />
-            Tải lên
-          </Button>
+          <SelectServiceDialog />
         </div>
       </div>
 
@@ -196,8 +195,19 @@ export function DocumentsManager() {
                         Tải xuống
                       </a>
                     </Button>
+                  ) : doc.service ? (
+                    <UploadDocumentDialog 
+                      serviceId={doc.service.id}
+                      serviceName={doc.service.product_name}
+                      trigger={
+                        <Button size="sm" className="flex-1 gap-2">
+                          <Upload className="h-4 w-4" />
+                          Tải lên ngay
+                        </Button>
+                      }
+                    />
                   ) : (
-                    <Button size="sm" className="flex-1 gap-2">
+                    <Button size="sm" className="flex-1 gap-2" disabled>
                       <Upload className="h-4 w-4" />
                       Tải lên ngay
                     </Button>

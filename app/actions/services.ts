@@ -473,6 +473,141 @@ export async function getClients() {
   return data as Profile[]
 }
 
+// Get all staff members (for admin)
+export async function getStaffMembers() {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('role', ['staff', 'admin'])
+    .order('full_name')
+
+  if (error) {
+    console.error('[v0] Error fetching staff:', error)
+    return []
+  }
+  return data as Profile[]
+}
+
+// Create a new client profile (admin/staff only)
+export async function createClientProfile(data: {
+  email: string
+  full_name?: string
+  company_name?: string
+  phone?: string
+}) {
+  const supabase = await createClient()
+  
+  // Generate a UUID for the new client
+  const clientId = crypto.randomUUID()
+  
+  const { data: client, error } = await supabase
+    .from('profiles')
+    .insert({
+      id: clientId,
+      email: data.email,
+      full_name: data.full_name || null,
+      company_name: data.company_name || null,
+      phone: data.phone || null,
+      role: 'client'
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('[v0] Error creating client:', error)
+    throw new Error('Failed to create client: ' + error.message)
+  }
+
+  revalidatePath('/dashboard')
+  return client as Profile
+}
+
+// Get all users (admin only)
+export async function getAllUsers() {
+  const supabase = await createClient()
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .order('created_at', { ascending: false })
+
+  if (error) {
+    console.error('[v0] Error fetching users:', error)
+    return []
+  }
+  return data as Profile[]
+}
+
+// Update user role (admin only)
+export async function updateUserRole(userId: string, role: 'admin' | 'staff' | 'client') {
+  const supabase = await createClient()
+  
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ role, updated_at: new Date().toISOString() })
+    .eq('id', userId)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('[v0] Error updating user role:', error)
+    throw new Error('Failed to update user role: ' + error.message)
+  }
+
+  revalidatePath('/dashboard/users')
+  return data as Profile
+}
+
+// Create staff member (admin only)
+export async function createStaffMember(data: {
+  email: string
+  full_name?: string
+  phone?: string
+  role: 'staff' | 'admin'
+}) {
+  const supabase = await createClient()
+  
+  const staffId = crypto.randomUUID()
+  
+  const { data: staff, error } = await supabase
+    .from('profiles')
+    .insert({
+      id: staffId,
+      email: data.email,
+      full_name: data.full_name || null,
+      phone: data.phone || null,
+      role: data.role
+    })
+    .select()
+    .single()
+
+  if (error) {
+    console.error('[v0] Error creating staff:', error)
+    throw new Error('Failed to create staff member: ' + error.message)
+  }
+
+  revalidatePath('/dashboard/users')
+  return staff as Profile
+}
+
+// Delete user (admin only)
+export async function deleteUser(userId: string) {
+  const supabase = await createClient()
+  
+  const { error } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id', userId)
+
+  if (error) {
+    console.error('[v0] Error deleting user:', error)
+    throw new Error('Failed to delete user: ' + error.message)
+  }
+
+  revalidatePath('/dashboard/users')
+  return { success: true }
+}
+
 // Get activity logs for a service
 export async function getActivityLogs(serviceId: string) {
   const supabase = await createClient()
