@@ -628,6 +628,52 @@ export async function getStaffMembers() {
   return data as Profile[]
 }
 
+// App base URL used for the password-setup redirect.
+function getAppUrl() {
+  return (
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    'https://quanlyfda.vercel.app'
+  ).replace(/\/$/, '')
+}
+
+// Generate a Supabase recovery link for a freshly created user and email it via
+// our own SMTP (lib/email). generateLink does not send any email by itself, so
+// we are in full control of delivery. Errors are surfaced as warnings: the
+// account already exists, the admin can re-send the email later if needed.
+async function sendSetPasswordEmail(
+  admin: ReturnType<typeof createAdminClient>,
+  opts: { email: string; fullName?: string; roleLabel?: string },
+) {
+  try {
+    const redirectTo = `${getAppUrl()}/auth/update-password`
+
+    const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
+      type: 'recovery',
+      email: opts.email,
+      options: { redirectTo },
+    })
+
+    if (linkError || !linkData?.properties?.action_link) {
+      console.error('[v0] Error generating set-password link:', linkError)
+      return
+    }
+
+    const { sendEmail, emailTemplates } = await import('@/lib/email')
+    const template = emailTemplates.setPassword({
+      fullName: opts.fullName,
+      email: opts.email,
+      actionLink: linkData.properties.action_link,
+      roleLabel: opts.roleLabel,
+    })
+
+    await sendEmail({ to: opts.email, subject: template.subject, html: template.html })
+  } catch (emailError) {
+    // Don't throw - the account is created; email delivery is best-effort.
+    console.error('[v0] Error sending set-password email:', emailError)
+  }
+}
+
 // Create a new client profile (admin/staff only)
 export async function createClientProfile(data: {
   email: string
@@ -680,26 +726,12 @@ export async function createClientProfile(data: {
     throw new Error('Failed to create client: ' + error.message)
   }
 
-  // Send password reset email so user can set their own password
-  try {
-    const { sendEmail, emailTemplates } = await import('@/lib/email')
-    await sendEmail({
-      to: data.email,
-      subject: 'Chào mừng bạn đến với VEXIM GLOBAL - Thiết lập mật khẩu',
-      html: `
-        <h2>Chào mừng bạn đến với VEXIM GLOBAL!</h2>
-        <p>Tài khoản của bạn đã được tạo với email: <strong>${data.email}</strong></p>
-        <p>Vui lòng truy cập link dưới đây để thiết lập mật khẩu:</p>
-        <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://quanlyfda.vercel.app'}/reset-password?email=${encodeURIComponent(data.email)}">Thiết lập mật khẩu</a></p>
-        <p>Hoặc bạn có thể sử dụng chức năng "Quên mật khẩu" trên trang đăng nhập.</p>
-        <br/>
-        <p>Trân trọng,<br/>VEXIM GLOBAL Team</p>
-      `,
-    })
-  } catch (emailError) {
-    console.error('[v0] Error sending welcome email:', emailError)
-    // Don't throw - account is created, email is not critical
-  }
+  // Generate a real Supabase recovery link and email it via our own SMTP so the
+  // user can set their own password. generateLink does NOT send any email itself.
+  await sendSetPasswordEmail(admin, {
+    email: data.email,
+    fullName: data.full_name,
+  })
 
   revalidatePath('/dashboard')
   return client as Profile
@@ -787,26 +819,12 @@ export async function createStaffMember(data: {
     throw new Error('Failed to create staff member: ' + error.message)
   }
 
-  // Send welcome email
-  try {
-    const { sendEmail } = await import('@/lib/email')
-    await sendEmail({
-      to: data.email,
-      subject: 'Chào mừng bạn gia nhập VEXIM GLOBAL - Thiết lập mật khẩu',
-      html: `
-        <h2>Chào mừng bạn gia nhập đội ngũ VEXIM GLOBAL!</h2>
-        <p>Tài khoản của bạn đã được tạo với email: <strong>${data.email}</strong></p>
-        <p>Vai trò: <strong>${data.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}</strong></p>
-        <p>Vui lòng truy cập link dưới đây để thiết lập mật khẩu:</p>
-        <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://quanlyfda.vercel.app'}/reset-password?email=${encodeURIComponent(data.email)}">Thiết lập mật khẩu</a></p>
-        <p>Hoặc bạn có thể sử dụng chức năng "Quên mật khẩu" trên trang đăng nhập.</p>
-        <br/>
-        <p>Trân trọng,<br/>VEXIM GLOBAL Team</p>
-      `,
-    })
-  } catch (emailError) {
-    console.error('[v0] Error sending welcome email:', emailError)
-  }
+  // Generate a real Supabase recovery link and email it via our own SMTP.
+  await sendSetPasswordEmail(admin, {
+    email: data.email,
+    fullName: data.full_name,
+    roleLabel: data.role === 'admin' ? 'Quản trị viên' : 'Nhân viên',
+  })
 
   revalidatePath('/dashboard/users')
   return staff as Profile

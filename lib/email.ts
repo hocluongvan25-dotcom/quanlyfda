@@ -46,6 +46,29 @@ export async function sendEmail({ to, subject, html, text }: SendEmailOptions) {
 
 // Template functions
 export const emailTemplates = {
+  setPassword: (opts: { fullName?: string; email: string; actionLink: string; roleLabel?: string }) => ({
+    subject: 'Chào mừng bạn đến với VEXIM GLOBAL - Thiết lập mật khẩu',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto;">
+        <h2 style="color:#0f766e;">Chào mừng${opts.fullName ? ' ' + opts.fullName : ''} đến với VEXIM GLOBAL!</h2>
+        <p>Tài khoản của bạn đã được tạo với email: <strong>${opts.email}</strong></p>
+        ${opts.roleLabel ? `<p>Vai trò: <strong>${opts.roleLabel}</strong></p>` : ''}
+        <p>Vui lòng nhấn vào nút dưới đây để thiết lập mật khẩu và truy cập hệ thống:</p>
+        <p style="margin: 24px 0;">
+          <a href="${opts.actionLink}"
+             style="background:#0f766e;color:#ffffff;padding:12px 24px;border-radius:8px;text-decoration:none;display:inline-block;">
+            Thiết lập mật khẩu
+          </a>
+        </p>
+        <p style="font-size:13px;color:#666;">Nếu nút không hoạt động, hãy sao chép và dán liên kết sau vào trình duyệt:</p>
+        <p style="font-size:13px;word-break:break-all;color:#0f766e;">${opts.actionLink}</p>
+        <p style="font-size:13px;color:#666;">Liên kết này chỉ có hiệu lực trong một khoảng thời gian giới hạn.</p>
+        <br/>
+        <p>Trân trọng,<br/>VEXIM GLOBAL Team</p>
+      </div>
+    `,
+  }),
+
   testEmail: (recipientName: string) => ({
     subject: 'Test Email - VEXIM GLOBAL',
     html: `
