@@ -78,6 +78,13 @@ export async function createService(data: {
   product_name: string
   product_description?: string
 }) {
+  const profile = await getCurrentProfile()
+  
+  // Only admin and staff can create services
+  if (profile.role !== 'admin' && profile.role !== 'staff') {
+    throw new Error('Unauthorized: Only admin and staff can create services')
+  }
+  
   const supabase = await createClient()
   
   const { data: service, error } = await supabase
