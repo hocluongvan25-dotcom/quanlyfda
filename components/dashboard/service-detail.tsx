@@ -115,8 +115,7 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
   const [userProfile, setUserProfile] = useState<Profile | null>(null)
   const [stageTransitionOpen, setStageTransitionOpen] = useState(false)
   const [targetStage, setTargetStage] = useState<PipelineStage | null>(null)
-  const [fdaDialogOpen, setFdaDialogOpen] = useState(false)
-  const [agentDialogOpen, setAgentDialogOpen] = useState(false)
+  const [fdaRegistrationOpen, setFdaRegistrationOpen] = useState(false)
 
   const isStaffOrAdmin = userProfile?.role === 'admin' || userProfile?.role === 'staff'
 
@@ -610,10 +609,10 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
                     variant="ghost"
                     size="sm"
                     className="gap-1.5 text-muted-foreground hover:text-foreground"
-                    onClick={() => setFdaDialogOpen(true)}
+                    onClick={() => setFdaRegistrationOpen(true)}
                   >
                     <Pencil className="h-3.5 w-3.5" />
-                    {service.fda_code ? 'Sửa' : 'Cập nhật'}
+                    {service.fda_code ? 'Sửa' : 'Đăng ký FDA'}
                   </Button>
                 )}
               </div>
@@ -672,10 +671,10 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
                     variant="ghost"
                     size="sm"
                     className="gap-1.5 text-muted-foreground hover:text-foreground"
-                    onClick={() => setAgentDialogOpen(true)}
+                    onClick={() => setFdaRegistrationOpen(true)}
                   >
                     <Pencil className="h-3.5 w-3.5" />
-                    {service.us_agent_name ? 'Sửa' : 'Cập nhật'}
+                    {service.us_agent_name ? 'Sửa' : 'Đăng ký FDA'}
                   </Button>
                 )}
               </div>
@@ -781,22 +780,10 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
         </div>
       </div>
 
-      {/* FDA Info Dialog */}
+      {/* FDA Registration Dialog (FDA + US Agent) */}
       <ServiceInfoDialog
-        open={fdaDialogOpen}
-        onOpenChange={setFdaDialogOpen}
-        mode="fda"
-        serviceId={serviceId}
-        productName={service.product_name}
-        service={service}
-        onSuccess={(updated) => setService((prev) => (prev ? { ...prev, ...updated } : prev))}
-      />
-
-      {/* US Agent Info Dialog */}
-      <ServiceInfoDialog
-        open={agentDialogOpen}
-        onOpenChange={setAgentDialogOpen}
-        mode="agent"
+        open={fdaRegistrationOpen}
+        onOpenChange={setFdaRegistrationOpen}
         serviceId={serviceId}
         productName={service.product_name}
         service={service}
