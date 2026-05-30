@@ -34,6 +34,8 @@ export interface Service {
   fda_code: string | null
   fda_issue_date: string | null
   fda_expiry_date: string | null
+  fda_duns_code: string | null
+  fda_fei_code: string | null
   us_agent_name: string | null
   us_agent_expiry_date: string | null
   notes: string | null

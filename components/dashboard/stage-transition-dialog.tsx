@@ -21,6 +21,8 @@ interface FdaInfo {
   fda_code: string
   fda_issue_date: string
   fda_expiry_date: string
+  fda_duns_code: string
+  fda_fei_code: string
 }
 
 interface StageTransitionDialogProps {
@@ -49,6 +51,8 @@ export function StageTransitionDialog({
     fda_code: '',
     fda_issue_date: '',
     fda_expiry_date: '',
+    fda_duns_code: '',
+    fda_fei_code: '',
   })
 
   const currentStageLabel = PIPELINE_STAGES.find(s => s.value === currentStage)?.label || currentStage
@@ -71,6 +75,12 @@ export function StageTransitionDialog({
     if (requiresFdaInfo) {
       if (!fdaInfo.fda_code.trim()) {
         return 'Vui lòng nhập mã đăng ký FDA'
+      }
+      if (!fdaInfo.fda_duns_code.trim()) {
+        return 'Vui lòng nhập mã DUNS'
+      }
+      if (!fdaInfo.fda_fei_code.trim()) {
+        return 'Vui lòng nhập mã FEI'
       }
       if (!fdaInfo.fda_issue_date) {
         return 'Vui lòng nhập ngày cấp FDA'
@@ -108,7 +118,7 @@ export function StageTransitionDialog({
       )
       // Reset form
       setNote('')
-      setFdaInfo({ fda_code: '', fda_issue_date: '', fda_expiry_date: '' })
+      setFdaInfo({ fda_code: '', fda_issue_date: '', fda_expiry_date: '', fda_duns_code: '', fda_fei_code: '' })
       onOpenChange(false)
       onSuccess?.()
     } catch (err) {
@@ -121,6 +131,8 @@ export function StageTransitionDialog({
 
   const isFormValid = note.trim() && (!requiresFdaInfo || (
     fdaInfo.fda_code.trim() && 
+    fdaInfo.fda_duns_code.trim() &&
+    fdaInfo.fda_fei_code.trim() &&
     fdaInfo.fda_issue_date && 
     fdaInfo.fda_expiry_date
   ))
@@ -166,6 +178,29 @@ export function StageTransitionDialog({
                   value={fdaInfo.fda_code}
                   onChange={(e) => setFdaInfo(prev => ({ ...prev, fda_code: e.target.value }))}
                 />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Mã DUNS <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    placeholder="VD: 12-345-6789"
+                    value={fdaInfo.fda_duns_code}
+                    onChange={(e) => setFdaInfo(prev => ({ ...prev, fda_duns_code: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Mã FEI <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    placeholder="VD: 1234567"
+                    value={fdaInfo.fda_fei_code}
+                    onChange={(e) => setFdaInfo(prev => ({ ...prev, fda_fei_code: e.target.value }))}
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

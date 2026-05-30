@@ -213,6 +213,8 @@ interface FdaInfo {
   fda_code: string
   fda_issue_date: string
   fda_expiry_date: string
+  fda_duns_code: string
+  fda_fei_code: string
 }
 
 // Update service stage
@@ -251,6 +253,8 @@ export async function updateServiceStage(
     updatePayload.fda_code = fdaInfo.fda_code
     updatePayload.fda_issue_date = fdaInfo.fda_issue_date
     updatePayload.fda_expiry_date = fdaInfo.fda_expiry_date
+    updatePayload.fda_duns_code = fdaInfo.fda_duns_code
+    updatePayload.fda_fei_code = fdaInfo.fda_fei_code
   }
 
   const { error } = await supabase
