@@ -637,13 +637,30 @@ export async function createClientProfile(data: {
 }) {
   const supabase = await createClient()
   
-  // Generate a UUID for the new client
-  const clientId = crypto.randomUUID()
+  // Generate a temporary password
+  const tempPassword = crypto.randomUUID().slice(0, 12) + 'Aa1!'
   
+  // Create auth user using Supabase Admin API
+  const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+    email: data.email,
+    password: tempPassword,
+    email_confirm: true, // Auto-confirm email
+    user_metadata: {
+      full_name: data.full_name,
+      company_name: data.company_name,
+    }
+  })
+
+  if (authError) {
+    console.error('[v0] Error creating auth user:', authError)
+    throw new Error('Failed to create user: ' + authError.message)
+  }
+
+  // Create profile with the auth user's ID
   const { data: client, error } = await supabase
     .from('profiles')
     .insert({
-      id: clientId,
+      id: authUser.user.id,
       email: data.email,
       full_name: data.full_name || null,
       company_name: data.company_name || null,
@@ -654,8 +671,31 @@ export async function createClientProfile(data: {
     .single()
 
   if (error) {
-    console.error('[v0] Error creating client:', error)
+    console.error('[v0] Error creating client profile:', error)
+    // Try to delete auth user if profile creation fails
+    await supabase.auth.admin.deleteUser(authUser.user.id)
     throw new Error('Failed to create client: ' + error.message)
+  }
+
+  // Send password reset email so user can set their own password
+  try {
+    const { sendEmail, emailTemplates } = await import('@/lib/email')
+    await sendEmail({
+      to: data.email,
+      subject: 'Chào mừng bạn đến với VEXIM GLOBAL - Thiết lập mật khẩu',
+      html: `
+        <h2>Chào mừng bạn đến với VEXIM GLOBAL!</h2>
+        <p>Tài khoản của bạn đã được tạo với email: <strong>${data.email}</strong></p>
+        <p>Vui lòng truy cập link dưới đây để thiết lập mật khẩu:</p>
+        <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://quanlyfda.vercel.app'}/reset-password?email=${encodeURIComponent(data.email)}">Thiết lập mật khẩu</a></p>
+        <p>Hoặc bạn có thể sử dụng chức năng "Quên mật khẩu" trên trang đăng nhập.</p>
+        <br/>
+        <p>Trân trọng,<br/>VEXIM GLOBAL Team</p>
+      `,
+    })
+  } catch (emailError) {
+    console.error('[v0] Error sending welcome email:', emailError)
+    // Don't throw - account is created, email is not critical
   }
 
   revalidatePath('/dashboard')
@@ -706,12 +746,28 @@ export async function createStaffMember(data: {
 }) {
   const supabase = await createClient()
   
-  const staffId = crypto.randomUUID()
+  // Generate a temporary password
+  const tempPassword = crypto.randomUUID().slice(0, 12) + 'Aa1!'
   
+  // Create auth user using Supabase Admin API
+  const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
+    email: data.email,
+    password: tempPassword,
+    email_confirm: true,
+    user_metadata: {
+      full_name: data.full_name,
+    }
+  })
+
+  if (authError) {
+    console.error('[v0] Error creating auth user:', authError)
+    throw new Error('Failed to create user: ' + authError.message)
+  }
+
   const { data: staff, error } = await supabase
     .from('profiles')
     .insert({
-      id: staffId,
+      id: authUser.user.id,
       email: data.email,
       full_name: data.full_name || null,
       phone: data.phone || null,
@@ -721,8 +777,30 @@ export async function createStaffMember(data: {
     .single()
 
   if (error) {
-    console.error('[v0] Error creating staff:', error)
+    console.error('[v0] Error creating staff profile:', error)
+    await supabase.auth.admin.deleteUser(authUser.user.id)
     throw new Error('Failed to create staff member: ' + error.message)
+  }
+
+  // Send welcome email
+  try {
+    const { sendEmail } = await import('@/lib/email')
+    await sendEmail({
+      to: data.email,
+      subject: 'Chào mừng bạn gia nhập VEXIM GLOBAL - Thiết lập mật khẩu',
+      html: `
+        <h2>Chào mừng bạn gia nhập đội ngũ VEXIM GLOBAL!</h2>
+        <p>Tài khoản của bạn đã được tạo với email: <strong>${data.email}</strong></p>
+        <p>Vai trò: <strong>${data.role === 'admin' ? 'Quản trị viên' : 'Nhân viên'}</strong></p>
+        <p>Vui lòng truy cập link dưới đây để thiết lập mật khẩu:</p>
+        <p><a href="${process.env.NEXT_PUBLIC_APP_URL || 'https://quanlyfda.vercel.app'}/reset-password?email=${encodeURIComponent(data.email)}">Thiết lập mật khẩu</a></p>
+        <p>Hoặc bạn có thể sử dụng chức năng "Quên mật khẩu" trên trang đăng nhập.</p>
+        <br/>
+        <p>Trân trọng,<br/>VEXIM GLOBAL Team</p>
+      `,
+    })
+  } catch (emailError) {
+    console.error('[v0] Error sending welcome email:', emailError)
   }
 
   revalidatePath('/dashboard/users')
@@ -733,14 +811,23 @@ export async function createStaffMember(data: {
 export async function deleteUser(userId: string) {
   const supabase = await createClient()
   
-  const { error } = await supabase
+  // Delete profile first
+  const { error: profileError } = await supabase
     .from('profiles')
     .delete()
     .eq('id', userId)
 
-  if (error) {
-    console.error('[v0] Error deleting user:', error)
-    throw new Error('Failed to delete user: ' + error.message)
+  if (profileError) {
+    console.error('[v0] Error deleting profile:', profileError)
+    throw new Error('Failed to delete user profile: ' + profileError.message)
+  }
+
+  // Delete auth user
+  const { error: authError } = await supabase.auth.admin.deleteUser(userId)
+  
+  if (authError) {
+    console.error('[v0] Error deleting auth user:', authError)
+    // Profile is already deleted, log but don't throw
   }
 
   revalidatePath('/dashboard/users')
