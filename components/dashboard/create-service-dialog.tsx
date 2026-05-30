@@ -23,8 +23,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { SERVICE_TYPES, type ServiceType, type Profile } from '@/lib/types'
-import { createService, getClients } from '@/app/actions/services'
-import { Plus, Loader2, Utensils, Sparkles, Stethoscope, Building2, UserPlus } from 'lucide-react'
+import { createService, getClients, getProfile } from '@/app/actions/services'
+import { Plus, Loader2, Utensils, Sparkles, Stethoscope, Building2, UserPlus, AlertCircle } from 'lucide-react'
 import { CreateClientDialog } from './create-client-dialog'
 
 function getServiceIcon(type: ServiceType) {
@@ -48,6 +48,8 @@ export function CreateServiceDialog({ trigger }: CreateServiceDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [clients, setClients] = useState<Profile[]>([])
   const [loadingClients, setLoadingClients] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [loadingRole, setLoadingRole] = useState(true)
   
   const [formData, setFormData] = useState({
     client_id: '',
@@ -65,11 +67,26 @@ export function CreateServiceDialog({ trigger }: CreateServiceDialogProps) {
       .finally(() => setLoadingClients(false))
   }
 
+  // Get current user role on component mount
   useEffect(() => {
-    if (open) {
+    const fetchUserRole = async () => {
+      try {
+        const profile = await getProfile()
+        setUserRole(profile.role)
+      } catch (error) {
+        console.error('[v0] Error fetching user role:', error)
+      } finally {
+        setLoadingRole(false)
+      }
+    }
+    fetchUserRole()
+  }, [])
+
+  useEffect(() => {
+    if (open && userRole && (userRole === 'admin' || userRole === 'staff')) {
       refreshClients()
     }
-  }, [open])
+  }, [open, userRole])
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {}
@@ -119,6 +136,16 @@ export function CreateServiceDialog({ trigger }: CreateServiceDialogProps) {
     } finally {
       setIsLoading(false)
     }
+  }
+
+  // If user role is not loaded yet, show nothing
+  if (loadingRole) {
+    return null
+  }
+
+  // If user is not admin or staff, don't render the button
+  if (userRole !== 'admin' && userRole !== 'staff') {
+    return null
   }
 
   return (
