@@ -657,17 +657,19 @@ export async function createClientProfile(data: {
     throw new Error('Failed to create user: ' + authError.message)
   }
 
-  // Create profile with the auth user's ID
+  // Upsert profile with the auth user's ID. A DB trigger may already have
+  // created a row for the new auth user, so we upsert (on conflict id) to
+  // avoid a duplicate key error and fill in the full details.
   const { data: client, error } = await admin
     .from('profiles')
-    .insert({
+    .upsert({
       id: authUser.user.id,
       email: data.email,
       full_name: data.full_name || null,
       company_name: data.company_name || null,
       phone: data.phone || null,
       role: 'client'
-    })
+    }, { onConflict: 'id' })
     .select()
     .single()
 
@@ -766,15 +768,16 @@ export async function createStaffMember(data: {
     throw new Error('Failed to create user: ' + authError.message)
   }
 
+  // Upsert (on conflict id) in case a DB trigger already created the profile row.
   const { data: staff, error } = await admin
     .from('profiles')
-    .insert({
+    .upsert({
       id: authUser.user.id,
       email: data.email,
       full_name: data.full_name || null,
       phone: data.phone || null,
       role: data.role
-    })
+    }, { onConflict: 'id' })
     .select()
     .single()
 
