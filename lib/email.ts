@@ -173,4 +173,41 @@ export const emailTemplates = {
       `,
     }),
   }),
+
+  // Reminder sent as an FDA registration or US Agent assignment approaches its
+  // expiry date. `subjectLabel` is e.g. "Đăng ký FDA" or "US Agent".
+  expiryReminder: (opts: {
+    productName: string
+    subjectLabel: string
+    expiryDateLabel: string
+    daysLeft: number
+  }) => {
+    const isExpired = opts.daysLeft < 0
+    const isToday = opts.daysLeft === 0
+    const statusText = isExpired
+      ? `đã hết hạn ${Math.abs(opts.daysLeft)} ngày trước`
+      : isToday
+        ? 'hết hạn hôm nay'
+        : `sẽ hết hạn sau ${opts.daysLeft} ngày`
+    return {
+      subject: `Nhắc gia hạn ${opts.subjectLabel}: "${opts.productName}" ${statusText}`,
+      html: layout({
+        title: isExpired ? `${opts.subjectLabel} đã hết hạn` : `Sắp đến hạn gia hạn ${opts.subjectLabel}`,
+        body: `
+          <p style="font-size:14px;line-height:1.6;">
+            ${opts.subjectLabel} cho dịch vụ <strong>${opts.productName}</strong> ${statusText}.
+          </p>
+          ${infoTable(
+            infoRow('Dịch vụ', opts.productName) +
+            infoRow('Loại', opts.subjectLabel) +
+            infoRow('Ngày hết hạn', opts.expiryDateLabel)
+          )}
+          <p style="font-size:14px;line-height:1.6;">
+            Để duy trì hiệu lực và tránh gián đoạn kinh doanh, vui lòng liên hệ VEXIM GLOBAL hoặc gửi yêu cầu gia hạn trong hệ thống.
+          </p>
+          ${button(`${getAppUrl()}/dashboard`, 'Gửi yêu cầu gia hạn')}
+        `,
+      }),
+    }
+  },
 }

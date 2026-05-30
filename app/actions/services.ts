@@ -4,6 +4,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import type { Service, Profile, PipelineStage, ServiceType } from '@/lib/types'
 import { getStageLabel } from '@/lib/types'
+import { addMonths, todayIso, REGISTRATION_VALIDITY_MONTHS } from '@/lib/expiry'
 
 // Helper to get current user
 async function getCurrentUser() {
@@ -284,13 +285,31 @@ export async function updateServiceStage(serviceId: string, stage: PipelineStage
 // Update service details
 export async function updateService(serviceId: string, data: Partial<Service>) {
   const supabase = await createClient()
-  
+
+  // Build the update payload, auto-deriving expiry dates so staff don't have to
+  // calculate them by hand. A registration / US Agent assignment is valid for
+  // REGISTRATION_VALIDITY_MONTHS (12) months.
+  const updates: Partial<Service> & { updated_at: string } = {
+    ...data,
+    updated_at: new Date().toISOString(),
+  }
+
+  // When a US Agent is confirmed (name set in this update) and no expiry was
+  // provided explicitly, set it to today + 12 months.
+  if (data.us_agent_name && data.us_agent_expiry_date === undefined) {
+    updates.us_agent_expiry_date = addMonths(todayIso(), REGISTRATION_VALIDITY_MONTHS)
+  }
+
+  // When an FDA code is issued (set in this update) and no expiry was provided,
+  // derive it from the issue date (or today) + 12 months.
+  if (data.fda_code && data.fda_expiry_date === undefined) {
+    const base = data.fda_issue_date || todayIso()
+    updates.fda_expiry_date = addMonths(base, REGISTRATION_VALIDITY_MONTHS)
+  }
+
   const { error } = await supabase
     .from('services')
-    .update({
-      ...data,
-      updated_at: new Date().toISOString()
-    })
+    .update(updates)
     .eq('id', serviceId)
 
   if (error) {
