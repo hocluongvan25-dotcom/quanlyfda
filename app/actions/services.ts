@@ -50,6 +50,110 @@ export async function getServices() {
   return data as Service[]
 }
 
+const SERVICE_SELECT = `
+  *,
+  client:profiles!services_client_id_fkey(*),
+  assigned_staff:profiles!services_assigned_staff_id_fkey(*)
+`
+
+// Fetch a single Kanban column's services with server-side pagination + an exact
+// total count. Used by the board so we only ever transfer a small batch per
+// column instead of every service for every client.
+export async function getPipelineServices(params: {
+  stage: PipelineStage
+  serviceTypes?: ServiceType[]
+  limit?: number
+  offset?: number
+}): Promise<{ services: Service[]; total: number }> {
+  const supabase = await createClient()
+  const { stage, serviceTypes, limit = 15, offset = 0 } = params
+
+  let query = supabase
+    .from('services')
+    .select(SERVICE_SELECT, { count: 'exact' })
+    .eq('current_stage', stage)
+    .order('updated_at', { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  // Only constrain by type when a real subset is selected.
+  if (serviceTypes && serviceTypes.length > 0 && serviceTypes.length < 3) {
+    query = query.in('service_type', serviceTypes)
+  }
+
+  const { data, error, count } = await query
+  if (error) {
+    console.error('[v0] Error fetching pipeline services:', error)
+    return { services: [], total: 0 }
+  }
+  return { services: (data ?? []) as Service[], total: count ?? 0 }
+}
+
+// Lightweight count-only query for a stage (used for terminal columns where we
+// show a tally instead of a card list).
+export async function getStageCount(
+  stage: PipelineStage,
+  serviceTypes?: ServiceType[],
+): Promise<number> {
+  const supabase = await createClient()
+  let query = supabase
+    .from('services')
+    .select('id', { count: 'exact', head: true })
+    .eq('current_stage', stage)
+
+  if (serviceTypes && serviceTypes.length > 0 && serviceTypes.length < 3) {
+    query = query.in('service_type', serviceTypes)
+  }
+
+  const { count, error } = await query
+  if (error) {
+    console.error('[v0] Error counting stage services:', error)
+    return 0
+  }
+  return count ?? 0
+}
+
+// Paginated + searchable list of services for the archive/completed table.
+// Accepts one or more stages (e.g. the terminal stages) plus optional filters.
+export async function getArchivedServices(params: {
+  stages: PipelineStage[]
+  serviceTypes?: ServiceType[]
+  search?: string
+  page?: number
+  pageSize?: number
+}): Promise<{ services: Service[]; total: number }> {
+  const supabase = await createClient()
+  const { stages, serviceTypes, search, page = 1, pageSize = 20 } = params
+
+  if (!stages.length) return { services: [], total: 0 }
+
+  const from = (page - 1) * pageSize
+  const to = from + pageSize - 1
+
+  let query = supabase
+    .from('services')
+    .select(SERVICE_SELECT, { count: 'exact' })
+    .in('current_stage', stages)
+    .order('updated_at', { ascending: false })
+    .range(from, to)
+
+  if (serviceTypes && serviceTypes.length > 0 && serviceTypes.length < 3) {
+    query = query.in('service_type', serviceTypes)
+  }
+
+  if (search && search.trim()) {
+    const term = `%${search.trim()}%`
+    // Match product name or FDA code.
+    query = query.or(`product_name.ilike.${term},fda_code.ilike.${term}`)
+  }
+
+  const { data, error, count } = await query
+  if (error) {
+    console.error('[v0] Error fetching archived services:', error)
+    return { services: [], total: 0 }
+  }
+  return { services: (data ?? []) as Service[], total: count ?? 0 }
+}
+
 // Get single service by ID
 export async function getServiceById(id: string) {
   const supabase = await createClient()
