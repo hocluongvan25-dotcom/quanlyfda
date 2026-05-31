@@ -158,6 +158,57 @@ export const emailTemplates = {
     }),
   }),
 
+  usAgentRenewalReminder: (opts: {
+    productName: string
+    clientName: string | null
+    usAgentName: string
+    expiryDate: string        // ISO date string
+    daysLeft: number          // 0 means today is expiry
+  }) => {
+    const expiryFormatted = new Date(opts.expiryDate).toLocaleDateString('vi-VN')
+    const isToday = opts.daysLeft === 0
+    const isUrgent = opts.daysLeft <= 7
+
+    const urgencyColor = isToday ? '#dc2626' : isUrgent ? '#ca8a04' : '#0f766e'
+    const urgencyBg   = isToday ? '#fef2f2' : isUrgent ? '#fefce8' : '#f0fdfa'
+    const urgencyBorder = isToday ? '#dc2626' : isUrgent ? '#ca8a04' : '#0f766e'
+
+    const daysLabel = isToday
+      ? 'Hôm nay là ngày hết hạn dịch vụ US Agent'
+      : `Dịch vụ US Agent sẽ hết hạn sau <strong>${opts.daysLeft} ngày</strong> nữa`
+
+    return {
+      subject: isToday
+        ? `[KHẨN] US Agent cho "${opts.productName}" hết hạn hôm nay`
+        : `Nhắc nhở gia hạn: US Agent cho "${opts.productName}" còn ${opts.daysLeft} ngày`,
+      html: layout({
+        title: 'Nhắc nhở gia hạn US Agent',
+        body: `
+          <p style="font-size:14px;line-height:1.6;">
+            Kính gửi <strong>${opts.clientName || 'Quý khách'}</strong>,
+          </p>
+          <div style="background:${urgencyBg};border-left:4px solid ${urgencyBorder};padding:14px 16px;border-radius:4px;margin:12px 0;">
+            <p style="margin:0;font-size:14px;line-height:1.6;color:${urgencyColor};">
+              ${daysLabel}
+            </p>
+          </div>
+          ${infoTable(
+            infoRow('Sản phẩm', opts.productName) +
+            infoRow('Tên US Agent', opts.usAgentName) +
+            infoRow('Ngày hết hạn', expiryFormatted)
+          )}
+          <p style="font-size:14px;line-height:1.6;">
+            Để đảm bảo đăng ký FDA của bạn không bị gián đoạn, vui lòng liên hệ với chúng tôi để gia hạn dịch vụ US Agent kịp thời.
+          </p>
+          ${button(`${getAppUrl()}/dashboard`, 'Liên hệ gia hạn ngay')}
+          <p style="font-size:13px;color:#64748b;line-height:1.6;">
+            Nếu bạn đã liên hệ với nhân viên của chúng tôi, vui lòng bỏ qua email này.
+          </p>
+        `,
+      }),
+    }
+  },
+
   serviceStageChanged: (
     productName: string, 
     fromStageLabel: string, 

@@ -36,6 +36,7 @@ import {
   MoreVertical,
 } from 'lucide-react'
 import Link from 'next/link'
+import { getNextFdaRenewalDate, isFdaRenewalFree, fdaRenewalCountdown } from '@/lib/fda-utils'
 import { UploadDocumentDialog } from './upload-document-dialog'
 import { RenewalRequestDialog } from './renewal-request-dialog'
 import { CreateTaskDialog } from './create-task-dialog'
@@ -607,6 +608,18 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
                     <p className="text-xs text-muted-foreground">Mã đăng ký FDA</p>
                     <p className="font-mono text-sm text-primary">{service.fda_code}</p>
                   </div>
+                  {service.fda_duns_code && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Mã DUNS</p>
+                      <p className="font-mono text-sm text-foreground">{service.fda_duns_code}</p>
+                    </div>
+                  )}
+                  {service.fda_fei_code && (
+                    <div>
+                      <p className="text-xs text-muted-foreground">Mã FEI</p>
+                      <p className="font-mono text-sm text-foreground">{service.fda_fei_code}</p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-xs text-muted-foreground">Ngày cấp</p>
                     <p className="text-sm text-foreground">
@@ -614,7 +627,7 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
                     </p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">Ngày hết hạn</p>
+                    <p className="text-xs text-muted-foreground">Ngày hết hạn (đã nhập)</p>
                     <div className="flex items-center gap-2">
                       <p className="text-sm text-foreground">
                         {formatDate(service.fda_expiry_date)}
@@ -631,6 +644,36 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
                       )}
                     </div>
                   </div>
+
+                  {/* FDA Renewal section - based on even-year rule */}
+                  {service.fda_issue_date && (() => {
+                    const nextRenewal = getNextFdaRenewalDate(service.fda_issue_date)
+                    const countdown = fdaRenewalCountdown(service.fda_issue_date)
+                    const isFree = isFdaRenewalFree(service.us_agent_expiry_date)
+                    return (
+                      <div className="pt-2 border-t border-border space-y-2">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Gia hạn FDA tiếp theo</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-sm text-foreground">
+                              {nextRenewal.toLocaleDateString('vi-VN')}
+                            </p>
+                            <Badge variant="outline" className="text-xs">
+                              {countdown}
+                            </Badge>
+                          </div>
+                        </div>
+                        {isFree && (
+                          <div className="flex items-center gap-2 bg-primary/10 rounded-md px-3 py-2">
+                            <CheckCircle className="h-4 w-4 text-primary shrink-0" />
+                            <p className="text-xs text-primary font-medium">
+                              Gia hạn FDA miễn phí - US Agent còn hiệu lực
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </>
               ) : (
                 <div className="text-center py-4 text-muted-foreground">
