@@ -197,7 +197,11 @@ export function DocumentsManager() {
                 <div className="flex gap-2">
                   {doc.file_url ? (
                     <Button variant="outline" size="sm" className="flex-1 gap-2" asChild>
-                      <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                      <a
+                        href={`${doc.file_url}${doc.file_url.includes('?') ? '&' : '?'}download=1`}
+                        download={doc.file_name}
+                        rel="noopener noreferrer"
+                      >
                         <Download className="h-4 w-4" />
                         Tải xuống
                       </a>
