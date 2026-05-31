@@ -6,6 +6,24 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
+  // Check if this is a password recovery redirect from Supabase
+  // The URL will contain hash fragments like #access_token=...&type=recovery
+  // Or query params like ?code=...&type=recovery
+  const url = request.nextUrl
+  const isRecoveryFlow = 
+    url.searchParams.get('type') === 'recovery' ||
+    url.searchParams.get('token_hash') !== null ||
+    // Check if we're at the root with potential hash params (handled client-side)
+    (url.pathname === '/' && url.search.includes('type=recovery'))
+  
+  // If this looks like a recovery redirect to root, redirect to update-password page
+  // The hash fragment will be preserved and handled client-side
+  if (isRecoveryFlow && url.pathname === '/') {
+    const redirectUrl = url.clone()
+    redirectUrl.pathname = '/auth/update-password'
+    return NextResponse.redirect(redirectUrl)
+  }
+
   // With Fluid compute, don't put this client in a global environment
   // variable. Always create a new one on each request.
   const supabase = createServerClient(
@@ -47,20 +65,20 @@ export async function updateSession(request: NextRequest) {
     !user
   ) {
     // no user, potentially respond by redirecting the user to the login page
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth/login'
-    return NextResponse.redirect(url)
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = '/auth/login'
+    return NextResponse.redirect(redirectUrl)
   }
 
-  // Redirect logged in users away from auth pages
+  // Redirect logged in users away from auth pages (but NOT update-password page)
   if (
     (request.nextUrl.pathname.startsWith('/auth/login') ||
      request.nextUrl.pathname.startsWith('/auth/sign-up')) &&
     user
   ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
-    return NextResponse.redirect(url)
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = '/dashboard'
+    return NextResponse.redirect(redirectUrl)
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
