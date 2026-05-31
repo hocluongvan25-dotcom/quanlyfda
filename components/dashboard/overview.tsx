@@ -82,70 +82,84 @@ export async function DashboardOverview() {
     s => s.current_stage !== 'completion_handover' && s.current_stage !== 'renewal_support'
   )
 
+  const completedServices = services
+    .filter(
+      s => s.current_stage === 'completion_handover' || s.current_stage === 'renewal_support'
+    )
+    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Tổng dịch vụ
-            </CardTitle>
-            <FileCheck className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{stats.totalServices}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {inProgressServices.length} đang xử lý
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/pipeline" className="block">
+          <Card className="bg-card border-border transition-colors hover:border-primary/50 hover:bg-secondary/30 h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Tổng dịch vụ
+              </CardTitle>
+              <FileCheck className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{stats.totalServices}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {inProgressServices.length} đang xử lý
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Hoàn thành
-            </CardTitle>
-            <CheckCircle className="h-4 w-4 text-success" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{stats.completedServices}</div>
-            <Progress 
-              value={stats.totalServices > 0 ? (stats.completedServices / stats.totalServices) * 100 : 0} 
-              className="mt-2 h-1" 
-            />
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/pipeline/archive" className="block">
+          <Card className="bg-card border-border transition-colors hover:border-primary/50 hover:bg-secondary/30 h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Hoàn thành
+              </CardTitle>
+              <CheckCircle className="h-4 w-4 text-success" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{stats.completedServices}</div>
+              <Progress 
+                value={stats.totalServices > 0 ? (stats.completedServices / stats.totalServices) * 100 : 0} 
+                className="mt-2 h-1" 
+              />
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Sắp hết hạn
-            </CardTitle>
-            <Clock className="h-4 w-4 text-warning" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{stats.expiringCount}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Trong 30 ngày tới
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/pipeline/archive?stage=renewal_support" className="block">
+          <Card className="bg-card border-border transition-colors hover:border-primary/50 hover:bg-secondary/30 h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Sắp hết hạn
+              </CardTitle>
+              <Clock className="h-4 w-4 text-warning" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{stats.expiringCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Trong 30 ngày tới
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        <Card className="bg-card border-border">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Thông báo mới
-            </CardTitle>
-            <AlertTriangle className="h-4 w-4 text-info" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">{stats.unreadNotifications}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Cần xem xét
-            </p>
-          </CardContent>
-        </Card>
+        <Link href="/dashboard/notifications" className="block">
+          <Card className="bg-card border-border transition-colors hover:border-primary/50 hover:bg-secondary/30 h-full">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
+                Thông báo mới
+              </CardTitle>
+              <AlertTriangle className="h-4 w-4 text-info" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-foreground">{stats.unreadNotifications}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Cần xem xét
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* Services List */}
@@ -302,6 +316,66 @@ export async function DashboardOverview() {
           </Card>
         </div>
       </div>
+
+      {/* Completed Services */}
+      <Card className="bg-card border-border">
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-foreground flex items-center gap-2">
+            <CheckCircle className="h-5 w-5 text-success" />
+            Dịch vụ hoàn thành gần đây
+          </CardTitle>
+          <Link href="/dashboard/pipeline/archive">
+            <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
+              Xem tất cả <ArrowRight className="ml-1 h-4 w-4" />
+            </Button>
+          </Link>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {completedServices.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <CheckCircle className="h-12 w-12 mx-auto mb-3 opacity-50" />
+              <p>Chưa có dịch vụ nào hoàn thành</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {completedServices.slice(0, 4).map((service) => (
+                <Link
+                  key={service.id}
+                  href={`/dashboard/service/${service.id}`}
+                  className="block"
+                >
+                  <div className="flex items-start justify-between p-4 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors h-full">
+                    <div className="space-y-2 flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge
+                          variant="outline"
+                          className={getServiceTypeBadgeClass(service.service_type)}
+                        >
+                          {getServiceIcon(service.service_type)}
+                          <span className="ml-1">{getServiceTypeLabel(service.service_type)}</span>
+                        </Badge>
+                        <Badge className="bg-success/20 text-success border-success/30">
+                          {getStageLabel(service.current_stage)}
+                        </Badge>
+                      </div>
+                      <h4 className="font-medium text-foreground truncate">{service.product_name}</h4>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {service.client?.company_name || service.client?.full_name || 'N/A'}
+                      </p>
+                      {service.fda_code && (
+                        <p className="text-xs text-muted-foreground">
+                          Mã FDA: <span className="font-mono text-primary">{service.fda_code}</span>
+                        </p>
+                      )}
+                    </div>
+                    <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0 ml-2" />
+                  </div>
+                </Link>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Recent Notifications */}
       <Card className="bg-card border-border">
