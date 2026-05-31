@@ -542,9 +542,14 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
                             {doc.document_type === 'result' ? 'Kết quả' : 'Yêu cầu'}
                           </Badge>
                           {doc.file_url && (
-                            <Button variant="ghost" size="icon" asChild>
-                              <a href={doc.file_url} target="_blank" rel="noopener noreferrer">
+                            <Button variant="ghost" size="icon" asChild title="Tải xuống">
+                              <a
+                                href={`${doc.file_url}${doc.file_url.includes('?') ? '&' : '?'}download=1`}
+                                download={doc.file_name}
+                                rel="noopener noreferrer"
+                              >
                                 <Download className="h-4 w-4" />
+                                <span className="sr-only">Tải xuống {doc.file_name}</span>
                               </a>
                             </Button>
                           )}
