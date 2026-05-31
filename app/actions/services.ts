@@ -796,7 +796,8 @@ async function sendSetPasswordEmail(
   opts: { email: string; fullName?: string; roleLabel?: string },
 ) {
   try {
-    const redirectTo = `${getAppUrl()}/auth/update-password`
+    // Use the confirm route that properly handles recovery tokens
+    const redirectTo = `${getAppUrl()}/auth/confirm`
 
     const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
       type: 'recovery',
@@ -809,6 +810,8 @@ async function sendSetPasswordEmail(
       return
     }
 
+    // The action_link from Supabase has redirect_to pointing to our confirm route,
+    // which will then redirect to /auth/update-password after verifying the token
     const { sendEmail, emailTemplates } = await import('@/lib/email')
     const template = emailTemplates.setPassword({
       fullName: opts.fullName,
