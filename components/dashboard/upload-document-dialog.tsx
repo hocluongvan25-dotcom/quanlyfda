@@ -19,8 +19,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Upload, FileText, X, Loader2, CheckCircle } from 'lucide-react'
+import { Upload, FileText, X, Loader2, CheckCircle, Sparkles } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import {
+  DOCUMENT_CATEGORIES,
+  detectDocumentCategory,
+  getDocumentCategoryLabel,
+  type DocumentCategory,
+} from '@/lib/types'
 
 interface UploadDocumentDialogProps {
   serviceId: string
@@ -48,6 +54,8 @@ export function UploadDocumentDialog({
   const [uploadSuccess, setUploadSuccess] = useState(false)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [documentType, setDocumentType] = useState<string>('required')
+  const [category, setCategory] = useState<DocumentCategory>('other')
+  const [autoDetected, setAutoDetected] = useState(false)
   const [error, setError] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const router = useRouter()
@@ -61,6 +69,12 @@ export function UploadDocumentDialog({
         return
       }
       setSelectedFile(file)
+      // Auto-detect the document category from the file name
+      const detected = detectDocumentCategory(file.name)
+      setCategory(detected)
+      setAutoDetected(true)
+      // Result-type categories get marked as "result", others as "required"
+      setDocumentType(detected === 'fda_certificate' ? 'result' : 'required')
       setError('')
     }
   }
@@ -79,6 +93,7 @@ export function UploadDocumentDialog({
       formData.append('file', selectedFile)
       formData.append('serviceId', serviceId)
       formData.append('documentType', documentType)
+      formData.append('category', category)
 
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -99,6 +114,8 @@ export function UploadDocumentDialog({
         setSelectedFile(null)
         setUploadSuccess(false)
         setDocumentType('required')
+        setCategory('other')
+        setAutoDetected(false)
         router.refresh()
         onUploadComplete?.()
       }, 1500)
@@ -194,6 +211,40 @@ export function UploadDocumentDialog({
                   </p>
                 </>
               )}
+            </div>
+
+            {/* Document Category (auto-detected) */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="category">Loại hồ sơ</Label>
+                {autoDetected && selectedFile && (
+                  <span className="flex items-center gap-1 text-xs text-primary">
+                    <Sparkles className="h-3 w-3" />
+                    Tự động nhận dạng: {getDocumentCategoryLabel(category)}
+                  </span>
+                )}
+              </div>
+              <Select
+                value={category}
+                onValueChange={(value) => {
+                  setCategory(value as DocumentCategory)
+                  setAutoDetected(false)
+                }}
+              >
+                <SelectTrigger id="category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {DOCUMENT_CATEGORIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>
+                      {c.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Hệ thống tự gợi ý dựa trên tên file. Bạn có thể chọn lại nếu chưa đúng.
+              </p>
             </div>
 
             {/* Document Type */}

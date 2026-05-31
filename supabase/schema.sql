@@ -116,6 +116,7 @@ CREATE TABLE IF NOT EXISTS documents (
   service_id UUID NOT NULL REFERENCES services(id) ON DELETE CASCADE,
   uploaded_by UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
   document_type document_type NOT NULL,
+  category TEXT,
   file_name TEXT NOT NULL,
   file_url TEXT NOT NULL,
   file_size INTEGER,

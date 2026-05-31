@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { createClient } from '@/lib/supabase/client'
-import type { Document, ServiceType } from '@/lib/types'
+import { getDocumentCategoryLabel, type Document, type ServiceType } from '@/lib/types'
 import {
   FileText,
   Download,
@@ -183,9 +183,16 @@ export function DocumentsManager() {
                   </Badge>
                 </div>
 
-                <p className="text-xs text-muted-foreground">
-                  Tải lên: {formatDate(doc.created_at)}
-                </p>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-xs text-muted-foreground">
+                    Tải lên: {formatDate(doc.created_at)}
+                  </p>
+                  {doc.category && (
+                    <Badge variant="outline" className="text-xs">
+                      {getDocumentCategoryLabel(doc.category)}
+                    </Badge>
+                  )}
+                </div>
 
                 <div className="flex gap-2">
                   {doc.file_url ? (

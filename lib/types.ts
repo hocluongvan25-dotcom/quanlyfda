@@ -10,6 +10,12 @@ export type PipelineStage =
   | 'completion_handover'
   | 'renewal_support'
 export type DocumentType = 'required' | 'result'
+export type DocumentCategory =
+  | 'fda_certificate'
+  | 'form_3537'
+  | 'login_account'
+  | 'other_form'
+  | 'other'
 export type NotificationType = 'info' | 'warning' | 'success' | 'error'
 
 export interface Profile {
@@ -68,6 +74,7 @@ export interface Document {
   service_id: string
   uploaded_by: string
   document_type: DocumentType
+  category: DocumentCategory | null
   file_name: string
   file_url: string
   file_size: number | null
@@ -189,4 +196,58 @@ export const getStageLabel = (stage: PipelineStage): string => {
 
 export const getServiceTypeLabel = (type: ServiceType): string => {
   return SERVICE_TYPES.find(t => t.value === type)?.label || type
+}
+
+// Document categories used to classify uploaded files
+export const DOCUMENT_CATEGORIES: { value: DocumentCategory; label: string }[] = [
+  { value: 'fda_certificate', label: 'Chứng nhận FDA' },
+  { value: 'form_3537', label: 'Form 3537' },
+  { value: 'login_account', label: 'Tài khoản đăng nhập' },
+  { value: 'other_form', label: 'Form khác' },
+  { value: 'other', label: 'Khác' },
+]
+
+export const getDocumentCategoryLabel = (category: DocumentCategory | null | undefined): string => {
+  if (!category) return 'Chưa phân loại'
+  return DOCUMENT_CATEGORIES.find(c => c.value === category)?.label || 'Khác'
+}
+
+// Remove Vietnamese diacritics so keyword matching works on both "chứng nhận"
+// and "chung nhan", with or without accents.
+function normalizeForMatch(input: string): string {
+  return input
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+}
+
+// Auto-detect the document category from a file name. Falls back to 'other'.
+export const detectDocumentCategory = (fileName: string): DocumentCategory => {
+  const name = normalizeForMatch(fileName)
+
+  // Form 3537 (incl. 3537a)
+  if (/3537/.test(name)) return 'form_3537'
+
+  // Login / account credentials
+  if (
+    /(login|log-in|account|credential|password|pass-?word|dang ?nhap|tai ?khoan|mat ?khau|\btk\b)/.test(
+      name,
+    )
+  ) {
+    return 'login_account'
+  }
+
+  // FDA certificate / registration certificate
+  if (
+    /(certificate|chung ?nhan|cert\b|registration|dang ?ky)/.test(name) ||
+    (/fda/.test(name) && /(cert|chung ?nhan|certificate)/.test(name))
+  ) {
+    return 'fda_certificate'
+  }
+
+  // Any other recognizable form
+  if (/(form|mau|bieu ?mau)/.test(name)) return 'other_form'
+
+  return 'other'
 }
