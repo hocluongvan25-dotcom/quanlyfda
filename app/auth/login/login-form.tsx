@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
@@ -16,26 +16,55 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isRedirecting, setIsRedirecting] = useState(false)
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   // Handle recovery flow redirect on page load
+  // Supabase sends tokens in hash fragment (#access_token=...), NOT query params
   useEffect(() => {
-    const accessToken = searchParams.get('access_token')
-    const isRecovery = searchParams.get('type') === 'recovery'
-    const refreshToken = searchParams.get('refresh_token')
+    const handleRecoveryFlow = async () => {
+      // Check hash fragment for tokens (Supabase implicit grant flow)
+      const hash = window.location.hash.substring(1) // Remove leading #
+      if (!hash) return
 
-    // If this is a recovery flow, redirect to confirm route
-    if (accessToken && isRecovery) {
-      console.log('[v0] Detected recovery flow on login page, redirecting to confirm')
-      const confirmUrl = `/auth/confirm?${new URLSearchParams({
-        access_token: accessToken,
-        type: 'recovery',
-        ...(refreshToken && { refresh_token: refreshToken }),
-      }).toString()}`
-      router.replace(confirmUrl)
+      const hashParams = new URLSearchParams(hash)
+      const accessToken = hashParams.get('access_token')
+      const refreshToken = hashParams.get('refresh_token')
+      const type = hashParams.get('type')
+
+      // If this is a recovery flow with tokens in hash
+      if (accessToken && type === 'recovery') {
+        setIsRedirecting(true)
+        
+        // Use Supabase client to set the session from the hash tokens
+        const supabase = createClient()
+        
+        if (refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
+          
+          if (!error) {
+            // Clear hash and redirect to update-password
+            window.location.hash = ''
+            router.replace('/auth/update-password')
+            return
+          }
+        }
+        
+        // If no refresh token or setSession failed, try redirect to confirm
+        const confirmUrl = `/auth/confirm?${new URLSearchParams({
+          access_token: accessToken,
+          type: 'recovery',
+          ...(refreshToken && { refresh_token: refreshToken }),
+        }).toString()}`
+        router.replace(confirmUrl)
+      }
     }
-  }, [searchParams, router])
+
+    handleRecoveryFlow()
+  }, [router])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,6 +85,18 @@ export function LoginForm() {
 
     router.push("/dashboard")
     router.refresh()
+  }
+
+  // Show loading state while redirecting
+  if (isRedirecting) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Đang chuyển hướng...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
