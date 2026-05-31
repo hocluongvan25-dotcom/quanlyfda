@@ -19,8 +19,14 @@ import {
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
-import { Loader2, AlertTriangle, Shield } from 'lucide-react'
-import { PIPELINE_STAGES, type PipelineStage } from '@/lib/types'
+import { Loader2, AlertTriangle, Shield, Upload, FileText, X, Sparkles } from 'lucide-react'
+import {
+  PIPELINE_STAGES,
+  DOCUMENT_CATEGORIES,
+  detectDocumentCategory,
+  type PipelineStage,
+  type DocumentCategory,
+} from '@/lib/types'
 import { updateServiceStage } from '@/app/actions/services'
 import { Textarea } from '@/components/ui/textarea'
 
@@ -81,6 +87,12 @@ export function StageTransitionDialog({
   const [error, setError] = useState<string | null>(null)
   const [note, setNote] = useState('')
 
+  // Pending documents to upload after the stage is updated
+  const [pendingFiles, setPendingFiles] = useState<
+    { file: File; category: DocumentCategory }[]
+  >([])
+  const [uploadStatus, setUploadStatus] = useState('')
+
   // FDA state — issue date defaults to today
   const [fdaInfo, setFdaInfo] = useState<FdaInfo>({
     fda_code: '',
@@ -110,6 +122,45 @@ export function StageTransitionDialog({
   const usAgentExpiryDate = usAgentDuration
     ? addYearsToDate(usAgentStartDate, parseInt(usAgentDuration))
     : ''
+
+  const handleAddFiles = (fileList: FileList | null) => {
+    if (!fileList) return
+    const newFiles = Array.from(fileList).map((file) => ({
+      file,
+      category: detectDocumentCategory(file.name),
+    }))
+    setPendingFiles((prev) => [...prev, ...newFiles])
+  }
+
+  const handleRemoveFile = (index: number) => {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index))
+  }
+
+  const handleChangeCategory = (index: number, category: DocumentCategory) => {
+    setPendingFiles((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, category } : item)),
+    )
+  }
+
+  const uploadPendingFiles = async () => {
+    for (let i = 0; i < pendingFiles.length; i++) {
+      const { file, category } = pendingFiles[i]
+      setUploadStatus(`Đang tải lên ${i + 1}/${pendingFiles.length}: ${file.name}`)
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('serviceId', serviceId)
+      formData.append('documentType', category === 'fda_certificate' ? 'result' : 'required')
+      formData.append('category', category)
+      formData.append('stage', targetStage)
+
+      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || `Không thể tải lên ${file.name}`)
+      }
+    }
+    setUploadStatus('')
+  }
 
   const validateForm = (): string | null => {
     if (requiresFdaInfo) {
@@ -164,11 +215,17 @@ export function StageTransitionDialog({
         usAgentInfo,
       )
 
+      // Upload any pending documents after the stage is updated
+      if (pendingFiles.length > 0) {
+        await uploadPendingFiles()
+      }
+
       // Reset form
       setNote('')
       setFdaInfo({ fda_code: '', fda_issue_date: todayISOString(), fda_expiry_date: '', fda_duns_code: '', fda_fei_code: '' })
       setUsAgentName('')
       setUsAgentDuration('')
+      setPendingFiles([])
       onOpenChange(false)
       onSuccess?.()
     } catch (err) {
@@ -266,6 +323,87 @@ export function StageTransitionDialog({
 
               <p className="text-xs text-muted-foreground">
                 Thông tin FDA sẽ được lưu vào hồ sơ dịch vụ và gửi cho khách hàng
+              </p>
+            </div>
+          )}
+
+          {/* ── DOCUMENT UPLOAD (when completing) ── */}
+          {requiresFdaInfo && (
+            <div className="space-y-3 p-4 bg-primary/5 rounded-lg border border-primary/20">
+              <div className="flex items-center gap-2 text-primary">
+                <Upload className="h-4 w-4" />
+                <span className="text-sm font-medium">Tài liệu bàn giao</span>
+              </div>
+
+              <label
+                htmlFor="stage-doc-upload"
+                className="flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-border bg-background/50 px-4 py-6 text-center cursor-pointer transition-colors hover:border-primary/50 hover:bg-secondary/30"
+              >
+                <Upload className="h-6 w-6 text-muted-foreground" />
+                <span className="text-sm text-foreground">Chọn file để tải lên</span>
+                <span className="text-xs text-muted-foreground">
+                  Chứng nhận FDA, Form 3537, tài khoản đăng nhập... (có thể chọn nhiều file)
+                </span>
+                <input
+                  id="stage-doc-upload"
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    handleAddFiles(e.target.files)
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+
+              {pendingFiles.length > 0 && (
+                <div className="space-y-2">
+                  {pendingFiles.map((item, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center gap-3 rounded-lg bg-background/50 border border-border p-2"
+                    >
+                      <FileText className="h-4 w-4 text-primary shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm text-foreground truncate">{item.file.name}</p>
+                        <div className="flex items-center gap-1 text-xs text-primary mt-0.5">
+                          <Sparkles className="h-3 w-3" />
+                          <span>Tự động nhận dạng</span>
+                        </div>
+                      </div>
+                      <Select
+                        value={item.category}
+                        onValueChange={(value) =>
+                          handleChangeCategory(index, value as DocumentCategory)
+                        }
+                      >
+                        <SelectTrigger className="h-8 w-[140px] text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {DOCUMENT_CATEGORIES.map((c) => (
+                            <SelectItem key={c.value} value={c.value} className="text-xs">
+                              {c.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => handleRemoveFile(index)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                Tài liệu sẽ được tải lên và lưu vào hồ sơ dịch vụ sau khi xác nhận chuyển giai đoạn.
               </p>
             </div>
           )}
@@ -386,7 +524,7 @@ export function StageTransitionDialog({
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Đang cập nhật...
+                {uploadStatus || 'Đang cập nhật...'}
               </>
             ) : (
               'Xác nhận chuyển'
