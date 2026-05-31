@@ -85,6 +85,8 @@ CREATE TABLE IF NOT EXISTS services (
   product_description TEXT,
   current_stage pipeline_stage DEFAULT 'reception_consultation',
   fda_code TEXT,
+  fda_duns_code TEXT,
+  fda_fei_code TEXT,
   fda_issue_date DATE,
   fda_expiry_date DATE,
   us_agent_name TEXT,
