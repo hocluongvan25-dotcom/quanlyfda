@@ -5,7 +5,6 @@ import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
   LayoutDashboard,
-  Kanban,
   FileText,
   Bell,
   Settings,
@@ -28,7 +27,6 @@ import type { Profile } from '@/lib/types'
 
 const navItems = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Tổng quan' },
-  { href: '/dashboard/pipeline', icon: Kanban, label: 'Pipeline' },
   { href: '/dashboard/documents', icon: FileText, label: 'Tài liệu' },
   { href: '/dashboard/users', icon: Users, label: 'Người dùng', adminOnly: true },
   { href: '/dashboard/notifications', icon: Bell, label: 'Thông báo' },

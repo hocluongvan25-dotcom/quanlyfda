@@ -3,8 +3,9 @@ export type ServiceType = 'food' | 'cosmetics' | 'medical_device'
 export type PipelineStage = 
   | 'reception_consultation'
   | 'document_collection'
-  | 'us_agent_assignment'
+  | 'expert_review'
   | 'fda_registration'
+  | 'us_agent_confirmation'
   | 'tracking_update'
   | 'completion_handover'
   | 'renewal_support'
@@ -34,7 +35,10 @@ export interface Service {
   fda_code: string | null
   fda_issue_date: string | null
   fda_expiry_date: string | null
+  fda_duns_code: string | null
+  fda_fei_code: string | null
   us_agent_name: string | null
+  us_agent_start_date: string | null
   us_agent_expiry_date: string | null
   notes: string | null
   created_at: string
@@ -125,14 +129,19 @@ export const PIPELINE_STAGES: { value: PipelineStage; label: string; description
     description: 'Thu thập và kiểm tra các tài liệu cần thiết'
   },
   { 
-    value: 'us_agent_assignment', 
-    label: 'Chỉ định US Agent',
-    description: 'Chỉ định và đăng ký US Agent cho khách hàng'
+    value: 'expert_review', 
+    label: 'Chuyên gia review',
+    description: 'Review chuyên gia trong quá trình đăng ký FDA'
   },
   { 
     value: 'fda_registration', 
     label: 'Đăng ký FDA',
     description: 'Nộp hồ sơ và hoàn tất đăng ký FDA'
+  },
+  { 
+    value: 'us_agent_confirmation', 
+    label: 'US Agent xác nhận',
+    description: 'Xác nhận US Agent và bắt đầu tính thời hạn dịch vụ'
   },
   { 
     value: 'tracking_update', 

@@ -208,8 +208,30 @@ export async function createService(data: {
   return service as Service
 }
 
+// FDA Info for completion stage
+interface FdaInfo {
+  fda_code: string
+  fda_issue_date: string
+  fda_expiry_date: string
+  fda_duns_code: string
+  fda_fei_code: string
+}
+
+// US Agent Info for us_agent_confirmation stage
+interface UsAgentInfo {
+  us_agent_name: string
+  us_agent_start_date: string
+  us_agent_expiry_date: string
+}
+
 // Update service stage
-export async function updateServiceStage(serviceId: string, stage: PipelineStage) {
+export async function updateServiceStage(
+  serviceId: string, 
+  stage: PipelineStage, 
+  note?: string,
+  fdaInfo?: FdaInfo,
+  usAgentInfo?: UsAgentInfo
+) {
   const supabase = await createClient()
   const user = await getCurrentUser()
   
@@ -228,12 +250,31 @@ export async function updateServiceStage(serviceId: string, stage: PipelineStage
     throw new Error('Service not found')
   }
 
+  // Build update payload
+  const updatePayload: Record<string, unknown> = {
+    current_stage: stage,
+    updated_at: new Date().toISOString()
+  }
+
+  // Add FDA info if provided (for completion_handover stage)
+  if (fdaInfo && stage === 'completion_handover') {
+    updatePayload.fda_code = fdaInfo.fda_code
+    updatePayload.fda_issue_date = fdaInfo.fda_issue_date
+    updatePayload.fda_expiry_date = fdaInfo.fda_expiry_date
+    updatePayload.fda_duns_code = fdaInfo.fda_duns_code
+    updatePayload.fda_fei_code = fdaInfo.fda_fei_code
+  }
+
+  // Add US Agent info if provided (for us_agent_confirmation stage)
+  if (usAgentInfo && stage === 'us_agent_confirmation') {
+    updatePayload.us_agent_name = usAgentInfo.us_agent_name
+    updatePayload.us_agent_start_date = usAgentInfo.us_agent_start_date
+    updatePayload.us_agent_expiry_date = usAgentInfo.us_agent_expiry_date
+  }
+
   const { error } = await supabase
     .from('services')
-    .update({ 
-      current_stage: stage,
-      updated_at: new Date().toISOString()
-    })
+    .update(updatePayload)
     .eq('id', serviceId)
 
   if (error) {
@@ -241,12 +282,21 @@ export async function updateServiceStage(serviceId: string, stage: PipelineStage
     throw new Error('Failed to update service stage')
   }
 
-  // Log activity
+  // Get current user profile for logging
+  const currentProfile = await getCurrentProfile()
+
+  // Log activity with note, FDA info and US Agent info
   await supabase.from('activity_logs').insert({
     service_id: serviceId,
     user_id: user.id,
     action: 'stage_updated',
-    details: { new_stage: stage }
+    details: { 
+      new_stage: stage,
+      note: note || null,
+      staff_name: currentProfile.full_name || currentProfile.email,
+      fda_info: fdaInfo || null,
+      us_agent_info: usAgentInfo || null
+    }
   })
 
   // Send email to client if email is configured
@@ -262,7 +312,10 @@ export async function updateServiceStage(serviceId: string, stage: PipelineStage
       const emailTemplate = emailTemplates.serviceStageChanged(
         currentService.product_name,
         fromStage,
-        toStage
+        toStage,
+        note,
+        fdaInfo,
+        usAgentInfo
       )
 
       await sendEmail({
@@ -277,7 +330,7 @@ export async function updateServiceStage(serviceId: string, stage: PipelineStage
   }
 
   revalidatePath('/dashboard')
-  revalidatePath('/dashboard/pipeline')
+  revalidatePath('/dashboard/service')
   revalidatePath(`/dashboard/service/${serviceId}`)
 }
 

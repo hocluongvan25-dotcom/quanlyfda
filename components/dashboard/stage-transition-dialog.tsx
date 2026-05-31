@@ -9,11 +9,34 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, AlertTriangle } from 'lucide-react'
+import { Input } from '@/components/ui/input'
+import { Loader2, AlertTriangle, Shield } from 'lucide-react'
 import { PIPELINE_STAGES, type PipelineStage } from '@/lib/types'
 import { updateServiceStage } from '@/app/actions/services'
+import { Textarea } from '@/components/ui/textarea'
+
+interface FdaInfo {
+  fda_code: string
+  fda_issue_date: string
+  fda_expiry_date: string
+  fda_duns_code: string
+  fda_fei_code: string
+}
+
+interface UsAgentInfo {
+  us_agent_name: string
+  us_agent_start_date: string
+  us_agent_expiry_date: string
+}
 
 interface StageTransitionDialogProps {
   open: boolean
@@ -23,6 +46,26 @@ interface StageTransitionDialogProps {
   targetStage: PipelineStage
   productName: string
   onSuccess?: () => void
+}
+
+// Duration options for US Agent
+const US_AGENT_DURATIONS = [
+  { value: '1', label: '1 năm' },
+  { value: '2', label: '2 năm' },
+  { value: '3', label: '3 năm' },
+  { value: '4', label: '4 năm' },
+  { value: '5', label: '5 năm' },
+  { value: '10', label: '10 năm' },
+]
+
+function todayISOString() {
+  return new Date().toISOString().split('T')[0]
+}
+
+function addYearsToDate(dateStr: string, years: number): string {
+  const d = new Date(dateStr)
+  d.setFullYear(d.getFullYear() + years)
+  return d.toISOString().split('T')[0]
 }
 
 export function StageTransitionDialog({
@@ -36,22 +79,96 @@ export function StageTransitionDialog({
 }: StageTransitionDialogProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [note, setNote] = useState('')
+
+  // FDA state — issue date defaults to today
+  const [fdaInfo, setFdaInfo] = useState<FdaInfo>({
+    fda_code: '',
+    fda_issue_date: todayISOString(),
+    fda_expiry_date: '',
+    fda_duns_code: '',
+    fda_fei_code: '',
+  })
+
+  // US Agent state — start date defaults to today, duration drives expiry
+  const [usAgentName, setUsAgentName] = useState('')
+  const [usAgentStartDate] = useState(todayISOString())        // auto, display only
+  const [usAgentDuration, setUsAgentDuration] = useState('')   // years as string
 
   const currentStageLabel = PIPELINE_STAGES.find(s => s.value === currentStage)?.label || currentStage
-  const targetStageLabel = PIPELINE_STAGES.find(s => s.value === targetStage)?.label || targetStage
+  const targetStageLabel  = PIPELINE_STAGES.find(s => s.value === targetStage)?.label  || targetStage
   const currentStageIndex = PIPELINE_STAGES.findIndex(s => s.value === currentStage)
-  const targetStageIndex = PIPELINE_STAGES.findIndex(s => s.value === targetStage)
+  const targetStageIndex  = PIPELINE_STAGES.findIndex(s => s.value === targetStage)
 
-  // Check if jumping stages (skipping one or more)
-  const isJumpingStages = Math.abs(targetStageIndex - currentStageIndex) > 1
+  const isJumpingStages  = Math.abs(targetStageIndex - currentStageIndex) > 1
   const isMovingBackward = targetStageIndex < currentStageIndex
 
+  const requiresFdaInfo     = targetStage === 'completion_handover'
+  const requiresUsAgentInfo = targetStage === 'us_agent_confirmation'
+
+  // Derived expiry date for US Agent
+  const usAgentExpiryDate = usAgentDuration
+    ? addYearsToDate(usAgentStartDate, parseInt(usAgentDuration))
+    : ''
+
+  const validateForm = (): string | null => {
+    if (requiresFdaInfo) {
+      if (!fdaInfo.fda_code.trim())    return 'Vui lòng nhập mã đăng ký FDA'
+      if (!fdaInfo.fda_issue_date)     return 'Vui lòng nhập ngày cấp FDA'
+      if (!fdaInfo.fda_expiry_date)    return 'Vui lòng nhập ngày hết hạn FDA'
+      if (new Date(fdaInfo.fda_expiry_date) <= new Date(fdaInfo.fda_issue_date))
+        return 'Ngày hết hạn phải sau ngày cấp'
+    }
+    if (requiresUsAgentInfo) {
+      if (!usAgentName.trim())  return 'Vui lòng nhập tên US Agent'
+      if (!usAgentDuration)     return 'Vui lòng chọn thời hạn US Agent'
+    }
+    return null
+  }
+
+  const isFormValid =
+    (!requiresFdaInfo || (
+      fdaInfo.fda_code.trim() &&
+      fdaInfo.fda_issue_date &&
+      fdaInfo.fda_expiry_date
+    )) &&
+    (!requiresUsAgentInfo || (
+      usAgentName.trim() &&
+      usAgentDuration !== ''
+    ))
+
   const handleConfirm = async () => {
+    const validationError = validateForm()
+    if (validationError) {
+      setError(validationError)
+      return
+    }
+
     setIsLoading(true)
     setError(null)
 
     try {
-      await updateServiceStage(serviceId, targetStage)
+      const usAgentInfo: UsAgentInfo | undefined = requiresUsAgentInfo
+        ? {
+            us_agent_name:        usAgentName.trim(),
+            us_agent_start_date:  usAgentStartDate,
+            us_agent_expiry_date: usAgentExpiryDate,
+          }
+        : undefined
+
+      await updateServiceStage(
+        serviceId,
+        targetStage,
+        note.trim() || undefined,
+        requiresFdaInfo ? fdaInfo : undefined,
+        usAgentInfo,
+      )
+
+      // Reset form
+      setNote('')
+      setFdaInfo({ fda_code: '', fda_issue_date: todayISOString(), fda_expiry_date: '', fda_duns_code: '', fda_fei_code: '' })
+      setUsAgentName('')
+      setUsAgentDuration('')
       onOpenChange(false)
       onSuccess?.()
     } catch (err) {
@@ -64,7 +181,7 @@ export function StageTransitionDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[450px]">
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Xác nhận chuyển giai đoạn</DialogTitle>
           <DialogDescription>
@@ -73,7 +190,7 @@ export function StageTransitionDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Current and Target Stages */}
+          {/* Current → Target stage */}
           <div className="flex items-center gap-4 p-3 bg-secondary/50 rounded-lg">
             <div className="flex-1">
               <p className="text-xs text-muted-foreground">Giai đoạn hiện tại</p>
@@ -84,6 +201,152 @@ export function StageTransitionDialog({
               <p className="text-xs text-muted-foreground">Giai đoạn mới</p>
               <p className="font-medium text-foreground">{targetStageLabel}</p>
             </div>
+          </div>
+
+          {/* ── FDA INFO ── */}
+          {requiresFdaInfo && (
+            <div className="space-y-4 p-4 bg-primary/5 rounded-lg border border-primary/20">
+              <div className="flex items-center gap-2 text-primary">
+                <Shield className="h-4 w-4" />
+                <span className="text-sm font-medium">Thông tin FDA</span>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Mã đăng ký FDA <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  placeholder="VD: FDA-2024-001234"
+                  value={fdaInfo.fda_code}
+                  onChange={(e) => setFdaInfo(prev => ({ ...prev, fda_code: e.target.value }))}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Mã DUNS</label>
+                  <Input
+                    placeholder="VD: 12-345-6789"
+                    value={fdaInfo.fda_duns_code}
+                    onChange={(e) => setFdaInfo(prev => ({ ...prev, fda_duns_code: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Mã FEI</label>
+                  <Input
+                    placeholder="VD: 1234567"
+                    value={fdaInfo.fda_fei_code}
+                    onChange={(e) => setFdaInfo(prev => ({ ...prev, fda_fei_code: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Ngày cấp <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    type="date"
+                    value={fdaInfo.fda_issue_date}
+                    onChange={(e) => setFdaInfo(prev => ({ ...prev, fda_issue_date: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Ngày hết hạn <span className="text-destructive">*</span>
+                  </label>
+                  <Input
+                    type="date"
+                    value={fdaInfo.fda_expiry_date}
+                    onChange={(e) => setFdaInfo(prev => ({ ...prev, fda_expiry_date: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <p className="text-xs text-muted-foreground">
+                Thông tin FDA sẽ được lưu vào hồ sơ dịch vụ và gửi cho khách hàng
+              </p>
+            </div>
+          )}
+
+          {/* ── US AGENT INFO ── */}
+          {requiresUsAgentInfo && (
+            <div className="space-y-4 p-4 bg-primary/5 rounded-lg border border-primary/20">
+              <div className="flex items-center gap-2 text-primary">
+                <Shield className="h-4 w-4" />
+                <span className="text-sm font-medium">Thông tin US Agent</span>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium">
+                  Tên US Agent <span className="text-destructive">*</span>
+                </label>
+                <Input
+                  placeholder="VD: ABC US Agent LLC"
+                  value={usAgentName}
+                  onChange={(e) => setUsAgentName(e.target.value)}
+                />
+              </div>
+
+              {/* Start date auto, duration dropdown, expiry auto */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Ngày bắt đầu</label>
+                  <Input
+                    type="date"
+                    value={usAgentStartDate}
+                    readOnly
+                    className="bg-secondary/50 text-muted-foreground cursor-not-allowed"
+                  />
+                  <p className="text-xs text-muted-foreground">Tự động điền hôm nay</p>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">
+                    Thời hạn <span className="text-destructive">*</span>
+                  </label>
+                  <Select value={usAgentDuration} onValueChange={setUsAgentDuration}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Chọn thời hạn" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {US_AGENT_DURATIONS.map(d => (
+                        <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Computed expiry preview */}
+              {usAgentExpiryDate && (
+                <div className="flex items-center gap-2 rounded-md bg-secondary/50 px-3 py-2">
+                  <p className="text-xs text-muted-foreground">Ngày hết hạn:</p>
+                  <p className="text-sm font-medium text-foreground">
+                    {new Date(usAgentExpiryDate).toLocaleDateString('vi-VN')}
+                  </p>
+                </div>
+              )}
+
+              <p className="text-xs text-muted-foreground">
+                Thời hạn US Agent sẽ được ghi nhận và khách hàng sẽ nhận email nhắc gia hạn trước khi hết hạn
+              </p>
+            </div>
+          )}
+
+          {/* ── NOTE ── */}
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Ghi chú</label>
+            <Textarea
+              placeholder="Nhập ghi chú cho khách hàng..."
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              className="resize-none"
+              rows={3}
+            />
+            <p className="text-xs text-muted-foreground">
+              Ghi chú này sẽ được gửi trong email thông báo tới khách hàng
+            </p>
           </div>
 
           {/* Warnings */}
@@ -113,21 +376,13 @@ export function StageTransitionDialog({
               </AlertDescription>
             </Alert>
           )}
-
-          <p className="text-sm text-muted-foreground">
-            Email thông báo sẽ được gửi cho khách hàng về sự thay đổi này.
-          </p>
         </div>
 
         <DialogFooter>
-          <Button
-            variant="outline"
-            onClick={() => onOpenChange(false)}
-            disabled={isLoading}
-          >
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
             Hủy
           </Button>
-          <Button onClick={handleConfirm} disabled={isLoading}>
+          <Button onClick={handleConfirm} disabled={isLoading || !isFormValid}>
             {isLoading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
