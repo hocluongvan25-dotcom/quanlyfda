@@ -6,24 +6,6 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
-  // Check if this is a password recovery redirect from Supabase
-  // The URL will contain hash fragments like #access_token=...&type=recovery
-  // Or query params like ?code=...&type=recovery
-  const url = request.nextUrl
-  const isRecoveryFlow = 
-    url.searchParams.get('type') === 'recovery' ||
-    url.searchParams.get('token_hash') !== null ||
-    // Check if we're at the root with potential hash params (handled client-side)
-    (url.pathname === '/' && url.search.includes('type=recovery'))
-  
-  // If this looks like a recovery redirect to root, redirect to update-password page
-  // The hash fragment will be preserved and handled client-side
-  if (isRecoveryFlow && url.pathname === '/') {
-    const redirectUrl = url.clone()
-    redirectUrl.pathname = '/auth/update-password'
-    return NextResponse.redirect(redirectUrl)
-  }
-
   // With Fluid compute, don't put this client in a global environment
   // variable. Always create a new one on each request.
   const supabase = createServerClient(
@@ -59,6 +41,25 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  const url = request.nextUrl
+  const hasAccessToken = url.searchParams.get('access_token') !== null
+  const isRecoveryType = url.searchParams.get('type') === 'recovery'
+  
+  // After getUser(), if we're on /auth/login with access_token for recovery,
+  // redirect to confirm to properly handle the recovery flow
+  if (hasAccessToken && isRecoveryType && url.pathname === '/auth/login') {
+    const redirectUrl = url.clone()
+    redirectUrl.pathname = '/auth/confirm'
+    return NextResponse.redirect(redirectUrl)
+  }
+  
+  // Also handle if redirect went to root for some reason
+  if (hasAccessToken && isRecoveryType && url.pathname === '/') {
+    const redirectUrl = url.clone()
+    redirectUrl.pathname = '/auth/confirm'
+    return NextResponse.redirect(redirectUrl)
+  }
+
   if (
     // if the user is not logged in and the dashboard path is accessed, redirect to the login page
     request.nextUrl.pathname.startsWith('/dashboard') &&
@@ -79,6 +80,12 @@ export async function updateSession(request: NextRequest) {
     const redirectUrl = request.nextUrl.clone()
     redirectUrl.pathname = '/dashboard'
     return NextResponse.redirect(redirectUrl)
+  }
+
+  // Allow update-password page for users during recovery flow
+  // This page should be accessible even if user has a session
+  if (request.nextUrl.pathname === '/auth/update-password') {
+    return supabaseResponse
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
