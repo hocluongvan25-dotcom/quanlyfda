@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File
     const serviceId = formData.get('serviceId') as string
     const documentType = formData.get('documentType') as string || 'required'
+    const category = formData.get('category') as string || null
     const stage = formData.get('stage') as string || null
 
     if (!file) {
@@ -38,6 +39,7 @@ export async function POST(request: NextRequest) {
         service_id: serviceId,
         uploaded_by: user.id,
         document_type: documentType,
+        category: category,
         file_name: file.name,
         file_url: blob.url, // Store full URL for public blobs
         file_size: file.size,

@@ -12,8 +12,10 @@ import {
   PIPELINE_STAGES, 
   getServiceTypeLabel,
   getStageIndex,
+  getDocumentCategoryLabel,
   type Service,
   type PipelineTask,
+  type PipelineStage,
   type Document,
 } from '@/lib/types'
 import {
@@ -523,9 +525,16 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
                           <FileText className="h-5 w-5 text-primary" />
                           <div>
                             <p className="text-sm font-medium text-foreground">{doc.file_name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              Tải lên: {formatDate(doc.created_at)}
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className="text-xs text-muted-foreground">
+                                Tải lên: {formatDate(doc.created_at)}
+                              </p>
+                              {doc.category && (
+                                <Badge variant="outline" className="text-xs">
+                                  {getDocumentCategoryLabel(doc.category)}
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
