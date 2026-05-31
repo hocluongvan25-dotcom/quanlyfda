@@ -119,12 +119,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6 text-center text-sm">
-              <span className="text-muted-foreground">Chưa có tài khoản? </span>
-              <Link href="/auth/sign-up" className="text-primary hover:underline font-medium">
-                Đăng ký ngay
-              </Link>
-            </div>
+
           </CardContent>
         </Card>
 
