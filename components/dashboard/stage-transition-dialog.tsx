@@ -81,19 +81,9 @@ export function StageTransitionDialog({
   const requiresUsAgentInfo = targetStage === 'us_agent_confirmation'
 
   const validateForm = (): string | null => {
-    if (!note.trim()) {
-      return 'Vui lòng nhập ghi chú trước khi chuyển giai đoạn'
-    }
-    
     if (requiresFdaInfo) {
       if (!fdaInfo.fda_code.trim()) {
         return 'Vui lòng nhập mã đăng ký FDA'
-      }
-      if (!fdaInfo.fda_duns_code.trim()) {
-        return 'Vui lòng nhập mã DUNS'
-      }
-      if (!fdaInfo.fda_fei_code.trim()) {
-        return 'Vui lòng nhập mã FEI'
       }
       if (!fdaInfo.fda_issue_date) {
         return 'Vui lòng nhập ngày cấp FDA'
@@ -129,51 +119,16 @@ export function StageTransitionDialog({
     return null
   }
 
-  const handleConfirm = async () => {
-    const validationError = validateForm()
-    if (validationError) {
-      setError(validationError)
-      return
-    }
-
-    setIsLoading(true)
-    setError(null)
-
-    try {
-      await updateServiceStage(
-        serviceId, 
-        targetStage, 
-        note.trim(),
-        requiresFdaInfo ? fdaInfo : undefined,
-        requiresUsAgentInfo ? usAgentInfo : undefined
-      )
-      // Reset form
-      setNote('')
-      setFdaInfo({ fda_code: '', fda_issue_date: '', fda_expiry_date: '', fda_duns_code: '', fda_fei_code: '' })
-      setUsAgentInfo({ us_agent_name: '', us_agent_start_date: '', us_agent_expiry_date: '' })
-      onOpenChange(false)
-      onSuccess?.()
-    } catch (err) {
-      console.error('[v0] Error updating stage:', err)
-      setError(err instanceof Error ? err.message : 'Không thể cập nhật giai đoạn')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const isFormValid = note.trim() && 
-    (!requiresFdaInfo || (
-      fdaInfo.fda_code.trim() && 
-      fdaInfo.fda_duns_code.trim() &&
-      fdaInfo.fda_fei_code.trim() &&
-      fdaInfo.fda_issue_date && 
-      fdaInfo.fda_expiry_date
-    )) &&
-    (!requiresUsAgentInfo || (
-      usAgentInfo.us_agent_name.trim() &&
-      usAgentInfo.us_agent_start_date &&
-      usAgentInfo.us_agent_expiry_date
-    ))
+  const isFormValid = (!requiresFdaInfo || (
+    fdaInfo.fda_code.trim() && 
+    fdaInfo.fda_issue_date && 
+    fdaInfo.fda_expiry_date
+  )) &&
+  (!requiresUsAgentInfo || (
+    usAgentInfo.us_agent_name.trim() &&
+    usAgentInfo.us_agent_start_date &&
+    usAgentInfo.us_agent_expiry_date
+  ))
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -221,7 +176,7 @@ export function StageTransitionDialog({
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
-                    Mã DUNS <span className="text-destructive">*</span>
+                    Mã DUNS
                   </label>
                   <Input
                     placeholder="VD: 12-345-6789"
@@ -231,7 +186,7 @@ export function StageTransitionDialog({
                 </div>
                 <div className="space-y-2">
                   <label className="text-sm font-medium">
-                    Mã FEI <span className="text-destructive">*</span>
+                    Mã FEI
                   </label>
                   <Input
                     placeholder="VD: 1234567"
@@ -321,7 +276,7 @@ export function StageTransitionDialog({
           {/* Note field */}
           <div className="space-y-2">
             <label className="text-sm font-medium">
-              Ghi chú <span className="text-destructive">*</span>
+              Ghi chú
             </label>
             <Textarea
               placeholder="Nhập ghi chú cho khách hàng..."
