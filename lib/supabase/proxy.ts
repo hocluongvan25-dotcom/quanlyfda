@@ -42,23 +42,10 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   const url = request.nextUrl
-  const hasAccessToken = url.searchParams.get('access_token') !== null
-  const isRecoveryType = url.searchParams.get('type') === 'recovery'
   
-  // After getUser(), if we're on /auth/login with access_token for recovery,
-  // redirect to confirm to properly handle the recovery flow
-  if (hasAccessToken && isRecoveryType && url.pathname === '/auth/login') {
-    const redirectUrl = url.clone()
-    redirectUrl.pathname = '/auth/confirm'
-    return NextResponse.redirect(redirectUrl)
-  }
-  
-  // Also handle if redirect went to root for some reason
-  if (hasAccessToken && isRecoveryType && url.pathname === '/') {
-    const redirectUrl = url.clone()
-    redirectUrl.pathname = '/auth/confirm'
-    return NextResponse.redirect(redirectUrl)
-  }
+  // Note: Recovery flow redirect (access_token + type=recovery) is now handled
+  // client-side in /auth/login page. This ensures the redirect happens before
+  // client rendering, preventing the login form from showing momentarily.
 
   if (
     // if the user is not logged in and the dashboard path is accessed, redirect to the login page
