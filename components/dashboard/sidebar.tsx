@@ -86,10 +86,10 @@ export function Sidebar() {
             {!collapsed && (
               <Link href="/dashboard" className="flex items-center justify-center w-full">
                 <Image
-                  src="/images/logo-vexim.png"
-                  alt="Vexim Global"
-                  width={180}
-                  height={60}
+                  src="/images/logo-global.png"
+                  alt="Global"
+                  width={80}
+                  height={80}
                   className="object-contain"
                   priority
                 />
@@ -98,8 +98,8 @@ export function Sidebar() {
             {collapsed && (
               <Link href="/dashboard" className="flex items-center justify-center">
                 <Image
-                  src="/images/logo-vexim.png"
-                  alt="Vexim Global"
+                  src="/images/logo-global.png"
+                  alt="Global"
                   width={40}
                   height={40}
                   className="object-contain"
