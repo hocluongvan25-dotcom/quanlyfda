@@ -315,7 +315,8 @@ export async function updateServiceStage(
         toStage,
         note,
         fdaInfo,
-        usAgentInfo
+        usAgentInfo,
+        stage // Pass stage code to detect completion_handover for Vexim Trade promo
       )
 
       await sendEmail({
@@ -1036,3 +1037,124 @@ export async function signOut() {
   await supabase.auth.signOut()
   revalidatePath('/')
 }
+
+// Resend password setup email for a user (admin/staff only)
+export async function resendSetPasswordEmail(userId: string) {
+  const profile = await getCurrentProfile()
+  if (profile.role !== 'admin' && profile.role !== 'staff') {
+    throw new Error('Unauthorized')
+  }
+
+  const admin = createAdminClient()
+  
+  // Get user info
+  const { data: targetUser } = await admin
+    .from('profiles')
+    .select('email, full_name, role')
+    .eq('id', userId)
+    .single()
+  
+  if (!targetUser) {
+    throw new Error('User not found')
+  }
+
+  // Send the password setup email
+  await sendSetPasswordEmail(admin, {
+    email: targetUser.email,
+    fullName: targetUser.full_name || undefined,
+    roleLabel: targetUser.role === 'client' ? 'Khách hàng' : 
+               targetUser.role === 'staff' ? 'Nhân viên' : 'Quản trị viên',
+  })
+
+  revalidatePath('/dashboard/users')
+  return { success: true }
+}
+
+// Set temporary password for a user (admin/staff only)
+// This sets force_password_change flag so user must change password on next login
+export async function setTemporaryPassword(userId: string, temporaryPassword: string) {
+  const profile = await getCurrentProfile()
+  if (profile.role !== 'admin' && profile.role !== 'staff') {
+    throw new Error('Unauthorized')
+  }
+
+  // Validate password
+  if (temporaryPassword.length < 6) {
+    throw new Error('Mật khẩu phải có ít nhất 6 ký tự')
+  }
+
+  const admin = createAdminClient()
+  
+  // Get user info first
+  const { data: targetUser } = await admin
+    .from('profiles')
+    .select('email, full_name')
+    .eq('id', userId)
+    .single()
+  
+  if (!targetUser) {
+    throw new Error('User not found')
+  }
+
+  // Update password using admin API
+  const { error: authError } = await admin.auth.admin.updateUserById(userId, {
+    password: temporaryPassword,
+  })
+
+  if (authError) {
+    console.error('[v0] Error updating password:', authError)
+    throw new Error('Không thể đặt mật khẩu: ' + authError.message)
+  }
+
+  // Set force_password_change flag in profile
+  const { error: profileError } = await admin
+    .from('profiles')
+    .update({ force_password_change: true })
+    .eq('id', userId)
+
+  if (profileError) {
+    console.error('[v0] Error setting force_password_change:', profileError)
+    // Non-critical, continue
+  }
+
+  // Send notification email to user
+  try {
+    const { sendEmail, emailTemplates } = await import('@/lib/email')
+    const template = emailTemplates.temporaryPassword({
+      fullName: targetUser.full_name || undefined,
+      email: targetUser.email,
+      temporaryPassword,
+    })
+    await sendEmail({ to: targetUser.email, subject: template.subject, html: template.html })
+  } catch (emailError) {
+    console.error('[v0] Error sending temp password email:', emailError)
+    // Non-critical, continue
+  }
+
+  revalidatePath('/dashboard/users')
+  return { success: true }
+}
+
+// Clear force_password_change flag after user changes password
+export async function clearForcePasswordChange() {
+  const user = await getCurrentUser()
+  const supabase = await createClient()
+  
+  await supabase
+    .from('profiles')
+    .update({ force_password_change: false })
+    .eq('id', user.id)
+  
+  revalidatePath('/dashboard')
+}
+
+// Check if current user needs to change password
+export async function checkForcePasswordChange(): Promise<boolean> {
+  try {
+    const profile = await getCurrentProfile()
+    return profile.force_password_change === true
+  } catch {
+    return false
+  }
+}
+

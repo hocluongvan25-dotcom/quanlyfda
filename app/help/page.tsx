@@ -1,10 +1,17 @@
+import Image from "next/image"
+
 export default function HelpPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="max-w-2xl mx-auto text-center space-y-6">
-        <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-primary mx-auto">
-          <span className="text-2xl font-bold text-primary-foreground">VX</span>
-        </div>
+        <Image
+          src="/images/logo-vexim.png"
+          alt="Vexim Global"
+          width={200}
+          height={100}
+          className="mx-auto object-contain"
+          priority
+        />
         <h1 className="text-3xl font-bold text-foreground">Trợ giúp & Hỗ trợ</h1>
         <p className="text-muted-foreground">
           Cần hỗ trợ về dịch vụ đăng ký FDA? Vui lòng liên hệ với chúng tôi qua các kênh sau:

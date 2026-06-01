@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
@@ -79,21 +80,32 @@ export function Sidebar() {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className={cn(
-            'flex h-16 items-center border-b border-sidebar-border px-4',
-            collapsed ? 'justify-center' : 'justify-between'
+            'flex h-20 items-center border-b border-sidebar-border px-4',
+            collapsed ? 'justify-center' : 'justify-start'
           )}>
             {!collapsed && (
-              <Link href="/dashboard" className="flex items-center gap-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                  <span className="text-sm font-bold text-primary-foreground">VX</span>
-                </div>
-                <span className="text-lg font-semibold text-sidebar-foreground">Vexim Global</span>
+              <Link href="/dashboard" className="flex items-center justify-center w-full">
+                <Image
+                  src="/images/logo-vexim.png"
+                  alt="Vexim Global"
+                  width={180}
+                  height={60}
+                  className="object-contain"
+                  priority
+                />
               </Link>
             )}
             {collapsed && (
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                <span className="text-sm font-bold text-primary-foreground">VX</span>
-              </div>
+              <Link href="/dashboard" className="flex items-center justify-center">
+                <Image
+                  src="/images/logo-vexim.png"
+                  alt="Vexim Global"
+                  width={40}
+                  height={40}
+                  className="object-contain"
+                  priority
+                />
+              </Link>
             )}
           </div>
 

@@ -1,5 +1,6 @@
 import Link from "next/link"
-import { ShieldCheck, Lock } from "lucide-react"
+import Image from "next/image"
+import { Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
@@ -8,13 +9,14 @@ export default function SignUpPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center gap-2 mb-2">
-            <ShieldCheck className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold text-foreground">Vexim Global</span>
-          </div>
-          <p className="text-muted-foreground text-center text-balance">
-            Hệ thống quản lý dịch vụ đăng ký FDA
-          </p>
+          <Image
+            src="/images/logo-vexim.png"
+            alt="Vexim Global"
+            width={250}
+            height={120}
+            priority
+            className="mb-4"
+          />
         </div>
 
         <Card className="border-border bg-card">

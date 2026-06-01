@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { Search, FileText, Download, CheckCircle, Clock, AlertCircle, Calendar, Building, User, Shield, ChevronDown, ChevronUp, Loader2, ArrowLeft, Package } from 'lucide-react'
 import Link from 'next/link'
 import { PIPELINE_STAGES, SERVICE_TYPES, DOCUMENT_CATEGORIES } from '@/lib/types'
@@ -193,12 +194,14 @@ export default function TraCuuPage() {
             <ArrowLeft className="h-5 w-5" />
             <span className="text-sm font-medium">Trang chủ</span>
           </Link>
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-emerald-500 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">V</span>
-            </div>
-            <span className="font-semibold text-slate-900">Vexim Global</span>
-          </div>
+          <Image
+            src="/images/logo-vexim.png"
+            alt="Vexim Global"
+            width={140}
+            height={50}
+            className="object-contain"
+            priority
+          />
         </div>
       </header>
 
