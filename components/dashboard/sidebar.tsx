@@ -80,15 +80,15 @@ export function Sidebar() {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className={cn(
-            'flex h-20 items-center border-b border-sidebar-border px-4',
-            collapsed ? 'justify-center' : 'justify-start'
+            'flex h-24 items-center justify-center border-b border-sidebar-border px-2 py-3',
+            collapsed && 'h-16'
           )}>
             {!collapsed && (
               <Link href="/dashboard" className="flex items-center justify-center w-full">
                 <Image
                   src="/images/logo-global.png"
-                  alt="Global"
-                  width={80}
+                  alt="VEXIM Global"
+                  width={150}
                   height={80}
                   className="object-contain"
                   priority
@@ -99,7 +99,7 @@ export function Sidebar() {
               <Link href="/dashboard" className="flex items-center justify-center">
                 <Image
                   src="/images/logo-global.png"
-                  alt="Global"
+                  alt="VEXIM Global"
                   width={40}
                   height={40}
                   className="object-contain"

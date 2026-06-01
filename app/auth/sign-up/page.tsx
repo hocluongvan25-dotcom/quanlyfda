@@ -11,8 +11,8 @@ export default function SignUpPage() {
         <div className="flex flex-col items-center mb-8">
           <Image
             src="/images/logo-global.png"
-            alt="Global"
-            width={120}
+            alt="VEXIM Global"
+            width={200}
             height={120}
             priority
             className="object-contain"
