@@ -310,7 +310,7 @@ export async function updateServiceStage(
       const toStage = getStageLabel(stage)
 
       const emailTemplate = emailTemplates.serviceStageChanged(
-        currentService.product_name,
+        "Dịch vụ Đăng ký FDA",
         fromStage,
         toStage,
         note,
