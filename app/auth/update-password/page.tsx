@@ -114,6 +114,7 @@ export default function UpdatePasswordPage() {
             priority
             className="mb-4"
           />
+        </div>
 
         <Card className="border-border bg-card">
           <CardHeader className="space-y-1">

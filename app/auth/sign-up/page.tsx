@@ -17,6 +17,7 @@ export default function SignUpPage() {
             priority
             className="mb-4"
           />
+        </div>
 
         <Card className="border-border bg-card">
           <CardHeader className="space-y-1 text-center">
