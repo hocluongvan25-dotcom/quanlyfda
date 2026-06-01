@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
+import { clearForcePasswordChange } from "@/app/actions/services"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -21,11 +22,22 @@ export default function UpdatePasswordPage() {
   const [sessionReady, setSessionReady] = useState(false)
   const [checking, setChecking] = useState(true)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  // Check if this is a forced password change (from temp password login)
+  const isForced = searchParams.get('force') === 'true'
 
   // The recovery link sets a session in the URL. The Supabase client detects it
   // automatically; we listen for the auth state to know when it's ready.
   useEffect(() => {
     const supabase = createClient()
+
+    // If forced, we already have a session from login
+    if (isForced) {
+      setSessionReady(true)
+      setChecking(false)
+      return
+    }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY" || (session && (event === "SIGNED_IN" || event === "INITIAL_SESSION"))) {
@@ -47,7 +59,7 @@ export default function UpdatePasswordPage() {
       subscription.unsubscribe()
       clearTimeout(timer)
     }
-  }, [])
+  }, [isForced])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -72,6 +84,15 @@ export default function UpdatePasswordPage() {
       return
     }
 
+    // Clear force_password_change flag if this was a forced change
+    if (isForced) {
+      try {
+        await clearForcePasswordChange()
+      } catch (e) {
+        console.error('Error clearing force password flag:', e)
+      }
+    }
+
     setSuccess(true)
     setIsLoading(false)
     setTimeout(() => {
@@ -89,20 +110,26 @@ export default function UpdatePasswordPage() {
             <span className="text-2xl font-bold text-foreground">Vexim Global</span>
           </div>
           <p className="text-muted-foreground text-center text-balance">
-            Thiết lập mật khẩu cho tài khoản của bạn
+            {isForced ? 'Bạn cần đổi mật khẩu trước khi tiếp tục' : 'Thiết lập mật khẩu cho tài khoản của bạn'}
           </p>
         </div>
 
         <Card className="border-border bg-card">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-2xl text-card-foreground">Đặt mật khẩu</CardTitle>
-            <CardDescription>Nhập mật khẩu mới để hoàn tất thiết lập tài khoản</CardDescription>
+            <CardTitle className="text-2xl text-card-foreground">
+              {isForced ? 'Đổi mật khẩu' : 'Đặt mật khẩu'}
+            </CardTitle>
+            <CardDescription>
+              {isForced 
+                ? 'Vui lòng đặt mật khẩu mới để bảo mật tài khoản của bạn' 
+                : 'Nhập mật khẩu mới để hoàn tất thiết lập tài khoản'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
             {checking ? (
               <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
                 <Loader2 className="h-5 w-5 animate-spin" />
-                <span>Đang xác thực liên kết...</span>
+                <span>Đang xác thực...</span>
               </div>
             ) : success ? (
               <div className="flex flex-col items-center gap-3 py-6 text-center">
@@ -131,6 +158,15 @@ export default function UpdatePasswordPage() {
                   <div className="flex items-center gap-2 p-3 text-sm text-destructive bg-destructive/10 rounded-md">
                     <AlertCircle className="h-4 w-4" />
                     <span>{error}</span>
+                  </div>
+                )}
+
+                {isForced && (
+                  <div className="flex items-start gap-2 p-3 text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded-md">
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <span>
+                      Quản trị viên đã đặt mật khẩu tạm thời cho bạn. Vui lòng đặt mật khẩu mới để tiếp tục sử dụng hệ thống.
+                    </span>
                   </div>
                 )}
 

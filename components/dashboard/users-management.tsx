@@ -51,9 +51,11 @@ import {
   Phone,
   Calendar,
   Trash2,
+  Key,
+  RefreshCw,
 } from 'lucide-react'
 import { Profile } from '@/lib/types'
-import { getAllUsers, updateUserRole, createStaffMember, createClientProfile, deleteUser } from '@/app/actions/services'
+import { getAllUsers, updateUserRole, createStaffMember, createClientProfile, deleteUser, resendSetPasswordEmail, setTemporaryPassword } from '@/app/actions/services'
 
 const roleLabels: Record<string, string> = {
   admin: 'Quản trị viên',
@@ -89,8 +91,10 @@ export function UsersManagement() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [showRoleDialog, setShowRoleDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showPasswordDialog, setShowPasswordDialog] = useState(false)
   const [selectedUser, setSelectedUser] = useState<Profile | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [tempPassword, setTempPassword] = useState('')
   
   // Form states
   const [newUserType, setNewUserType] = useState<'client' | 'staff'>('client')
@@ -186,6 +190,36 @@ export function UsersManagement() {
     } catch (error) {
       console.error('Error deleting user:', error)
       alert('Không thể xóa người dùng. Vui lòng thử lại.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleResendPasswordEmail = async (user: Profile) => {
+    setIsSubmitting(true)
+    try {
+      await resendSetPasswordEmail(user.id)
+      alert('Đã gửi lại email đặt mật khẩu thành công!')
+    } catch (error) {
+      console.error('Error resending password email:', error)
+      alert('Không thể gửi email. Vui lòng thử lại.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleSetTempPassword = async () => {
+    if (!selectedUser || !tempPassword) return
+    setIsSubmitting(true)
+    try {
+      await setTemporaryPassword(selectedUser.id, tempPassword)
+      alert('Đã đặt mật khẩu tạm và gửi email thông báo cho người dùng!')
+      setShowPasswordDialog(false)
+      setSelectedUser(null)
+      setTempPassword('')
+    } catch (error) {
+      console.error('Error setting temp password:', error)
+      alert(error instanceof Error ? error.message : 'Không thể đặt mật khẩu. Vui lòng thử lại.')
     } finally {
       setIsSubmitting(false)
     }
@@ -347,6 +381,23 @@ export function UsersManagement() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuLabel>Thao tác</DropdownMenuLabel>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem
+                                  onClick={() => handleResendPasswordEmail(user)}
+                                  disabled={isSubmitting}
+                                >
+                                  <RefreshCw className="h-4 w-4 mr-2" />
+                                  Gửi lại email đặt mật khẩu
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    setSelectedUser(user)
+                                    setShowPasswordDialog(true)
+                                  }}
+                                >
+                                  <Key className="h-4 w-4 mr-2" />
+                                  Đặt mật khẩu tạm
+                                </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   onClick={() => {
@@ -562,6 +613,64 @@ export function UsersManagement() {
             <Button variant="destructive" onClick={handleDeleteUser} disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Xóa người dùng
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Set Temporary Password Dialog */}
+      <Dialog open={showPasswordDialog} onOpenChange={(open) => {
+        setShowPasswordDialog(open)
+        if (!open) {
+          setTempPassword('')
+          setSelectedUser(null)
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Đặt mật khẩu tạm thời</DialogTitle>
+            <DialogDescription>
+              Đặt mật khẩu tạm cho {selectedUser?.full_name || selectedUser?.email}. 
+              Người dùng sẽ được yêu cầu đổi mật khẩu khi đăng nhập lần đầu.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 p-3 bg-secondary rounded-lg">
+              <Avatar className="h-10 w-10">
+                <AvatarFallback className="bg-primary/10 text-primary">
+                  {selectedUser && getInitials(selectedUser.full_name, selectedUser.email)}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <div className="font-medium">{selectedUser?.full_name || selectedUser?.email}</div>
+                <div className="text-sm text-muted-foreground">{selectedUser?.email}</div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="temp_password">Mật khẩu tạm thời</Label>
+              <Input
+                id="temp_password"
+                type="text"
+                value={tempPassword}
+                onChange={(e) => setTempPassword(e.target.value)}
+                placeholder="Nhập mật khẩu tạm (ít nhất 6 ký tự)"
+              />
+              <p className="text-xs text-muted-foreground">
+                Mật khẩu này sẽ được gửi qua email cho người dùng. Họ sẽ phải đổi mật khẩu sau khi đăng nhập.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowPasswordDialog(false)
+              setTempPassword('')
+              setSelectedUser(null)
+            }}>
+              Hủy
+            </Button>
+            <Button onClick={handleSetTempPassword} disabled={!tempPassword || tempPassword.length < 6 || isSubmitting}>
+              {isSubmitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Đặt mật khẩu
             </Button>
           </DialogFooter>
         </DialogContent>

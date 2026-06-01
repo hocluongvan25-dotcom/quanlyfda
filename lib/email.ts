@@ -272,4 +272,25 @@ export const emailTemplates = {
       `,
     }),
   }),
+
+  temporaryPassword: (opts: { fullName?: string; email: string; temporaryPassword: string }) => ({
+    subject: 'Mật khẩu tạm thời - VEXIM GLOBAL',
+    html: layout({
+      title: `Xin chào${opts.fullName ? ' ' + opts.fullName : ''},`,
+      body: `
+        <p style="font-size:14px;line-height:1.6;">Quản trị viên đã đặt lại mật khẩu tạm thời cho tài khoản của bạn.</p>
+        ${infoTable(
+          infoRow('Email', opts.email) +
+          infoRow('Mật khẩu tạm thời', opts.temporaryPassword)
+        )}
+        <div style="background:#fef2f2;border-left:4px solid #dc2626;padding:12px;border-radius:4px;margin:16px 0;">
+          <p style="margin:0;font-size:13px;line-height:1.6;color:#991b1b;">
+            <strong>Lưu ý bảo mật:</strong> Bạn sẽ được yêu cầu đổi mật khẩu ngay sau khi đăng nhập lần đầu. 
+            Vui lòng không chia sẻ mật khẩu này với bất kỳ ai.
+          </p>
+        </div>
+        ${button(`${getAppUrl()}/auth/login`, 'Đăng nhập ngay')}
+      `,
+    }),
+  }),
 }

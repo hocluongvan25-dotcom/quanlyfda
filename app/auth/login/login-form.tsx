@@ -72,7 +72,7 @@ export function LoginForm() {
     setIsLoading(true)
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error, data } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -81,6 +81,21 @@ export function LoginForm() {
       setError(error.message)
       setIsLoading(false)
       return
+    }
+
+    // Check if user needs to change password
+    if (data.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('force_password_change')
+        .eq('id', data.user.id)
+        .single()
+      
+      if (profile?.force_password_change) {
+        router.push("/auth/update-password?force=true")
+        router.refresh()
+        return
+      }
     }
 
     router.push("/dashboard")

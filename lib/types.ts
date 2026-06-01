@@ -26,6 +26,7 @@ export interface Profile {
   phone: string | null
   role: UserRole
   avatar_url: string | null
+  force_password_change: boolean | null
   created_at: string
   updated_at: string
 }
