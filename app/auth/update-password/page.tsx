@@ -3,13 +3,14 @@
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { createClient } from "@/lib/supabase/client"
 import { clearForcePasswordChange } from "@/app/actions/services"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react"
+import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react"
 
 export default function UpdatePasswordPage() {
   const [password, setPassword] = useState("")
@@ -105,14 +106,14 @@ export default function UpdatePasswordPage() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center gap-2 mb-2">
-            <ShieldCheck className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold text-foreground">Vexim Global</span>
-          </div>
-          <p className="text-muted-foreground text-center text-balance">
-            {isForced ? 'Bạn cần đổi mật khẩu trước khi tiếp tục' : 'Thiết lập mật khẩu cho tài khoản của bạn'}
-          </p>
-        </div>
+          <Image
+            src="/images/logo-vexim.png"
+            alt="Vexim Global"
+            width={250}
+            height={120}
+            priority
+            className="mb-4"
+          />
 
         <Card className="border-border bg-card">
           <CardHeader className="space-y-1">

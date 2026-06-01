@@ -3,12 +3,13 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import Image from "next/image"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertCircle, Eye, EyeOff, Loader2, ShieldCheck } from "lucide-react"
+import { AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react"
 
 export function LoginForm() {
   const [email, setEmail] = useState("")
@@ -118,13 +119,14 @@ export function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center gap-2 mb-2">
-            <ShieldCheck className="h-8 w-8 text-primary" />
-            <span className="text-2xl font-bold text-foreground">Vexim Global</span>
-          </div>
-          <p className="text-muted-foreground text-center text-balance">
-            Hệ thống quản lý dịch vụ đăng ký FDA
-          </p>
+          <Image
+            src="/images/logo-vexim.png"
+            alt="Vexim Global"
+            width={250}
+            height={120}
+            priority
+            className="mb-4"
+          />
         </div>
 
         <Card className="border-border bg-card">
