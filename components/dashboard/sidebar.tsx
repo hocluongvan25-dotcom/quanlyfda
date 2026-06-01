@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
@@ -16,7 +17,6 @@ import {
   BarChart3,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { LogoIcon } from '@/components/logo-icon'
 import { useState, useEffect } from 'react'
 import {
   Tooltip,
@@ -84,7 +84,14 @@ export function Sidebar() {
             collapsed ? 'px-0' : 'px-4'
           )}>
             <Link href="/dashboard" className="flex items-center justify-center w-full">
-              <LogoIcon size={collapsed ? 'sm' : 'md'} />
+              <Image
+                src="/images/logo-vexim.png"
+                alt="VEXIM Global"
+                width={collapsed ? 40 : 120}
+                height={collapsed ? 40 : 60}
+                className="object-contain"
+                priority
+              />
             </Link>
           </div>
 
