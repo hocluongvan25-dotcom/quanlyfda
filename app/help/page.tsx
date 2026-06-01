@@ -4,14 +4,16 @@ export default function HelpPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="max-w-2xl mx-auto text-center space-y-6">
-        <Image
-          src="/images/logo-vexim.png"
-          alt="Vexim Global"
-          width={200}
-          height={100}
-          className="mx-auto object-contain"
-          priority
-        />
+        <div className="bg-muted/80 rounded-xl p-6 inline-block mx-auto mb-6">
+          <Image
+            src="/images/logo-vexim.png"
+            alt="Vexim Global"
+            width={160}
+            height={70}
+            className="object-contain"
+            priority
+          />
+        </div>
         <h1 className="text-3xl font-bold text-foreground">Trợ giúp & Hỗ trợ</h1>
         <p className="text-muted-foreground">
           Cần hỗ trợ về dịch vụ đăng ký FDA? Vui lòng liên hệ với chúng tôi qua các kênh sau:
