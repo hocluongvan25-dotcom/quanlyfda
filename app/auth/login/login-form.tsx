@@ -119,14 +119,16 @@ export function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
-          <Image
-            src="/images/logo-vexim.png"
-            alt="Vexim Global"
-            width={250}
-            height={120}
-            priority
-            className="mb-4"
-          />
+          <div className="bg-muted/80 rounded-xl p-6 mb-4">
+            <Image
+              src="/images/logo-vexim.png"
+              alt="Vexim Global"
+              width={160}
+              height={70}
+              priority
+              className="object-contain"
+            />
+          </div>
         </div>
 
         <Card className="border-border bg-card">

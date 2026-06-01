@@ -271,13 +271,13 @@ export const emailTemplates = {
         ${toStage === 'completion_handover' ? `
         <div style="background:linear-gradient(135deg, #065f46 0%, #047857 100%);border-radius:8px;padding:24px;margin:24px 0;text-align:center;">
           <h3 style="margin:0 0 12px;font-size:18px;color:#ffffff;font-weight:600;">
-            Chuc mung! San pham cua ban da du dieu kien phap ly de len ke tai My
+            Chúc mừng! Sản phẩm của bạn đã đủ điều kiện pháp lý để lên kệ tại Mỹ
           </h3>
           <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#d1fae5;">
-            He thong <strong>Vexim Trade</strong> da san sang kich hoat co che tiep can <strong>5000+ Nha nhap khau My</strong> cho san pham cua ban.
+            Hệ thống <strong>Vexim Trade</strong> đã sẵn sàng kích hoạt cơ chế tiếp cận <strong>5000+ Nhà nhập khẩu Mỹ</strong> cho sản phẩm của bạn.
           </p>
           <a href="https://www.veximtrade.com/" style="display:inline-block;background:#ffffff;color:#065f46;font-weight:600;padding:12px 24px;border-radius:6px;text-decoration:none;font-size:14px;">
-            Bat dau lo trinh xuat khau ngay
+            Bắt đầu lộ trình xuất khẩu ngay
           </a>
         </div>
         ` : ''}

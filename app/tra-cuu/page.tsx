@@ -194,14 +194,16 @@ export default function TraCuuPage() {
             <ArrowLeft className="h-5 w-5" />
             <span className="text-sm font-medium">Trang chủ</span>
           </Link>
-          <Image
-            src="/images/logo-vexim.png"
-            alt="Vexim Global"
-            width={140}
-            height={50}
-            className="object-contain"
-            priority
-          />
+          <div className="bg-white/90 rounded-lg p-3">
+            <Image
+              src="/images/logo-vexim.png"
+              alt="Vexim Global"
+              width={120}
+              height={50}
+              className="object-contain"
+              priority
+            />
+          </div>
         </div>
       </header>
 
