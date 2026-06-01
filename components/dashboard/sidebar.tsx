@@ -1,7 +1,6 @@
 'use client'
 
 import Link from 'next/link'
-import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import {
@@ -17,6 +16,7 @@ import {
   BarChart3,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { LogoIcon } from '@/components/logo-icon'
 import { useState, useEffect } from 'react'
 import {
   Tooltip,
@@ -80,33 +80,12 @@ export function Sidebar() {
         <div className="flex h-full flex-col">
           {/* Logo */}
           <div className={cn(
-            'flex h-24 items-center justify-center border-b border-sidebar-border px-2 py-3',
-            collapsed && 'h-16'
+            'flex h-20 items-center justify-center border-b border-sidebar-border',
+            collapsed ? 'px-0' : 'px-4'
           )}>
-            {!collapsed && (
-              <Link href="/dashboard" className="flex items-center justify-center w-full">
-                <Image
-                  src="/images/logo-global.png"
-                  alt="VEXIM Global"
-                  width={150}
-                  height={80}
-                  className="object-contain"
-                  priority
-                />
-              </Link>
-            )}
-            {collapsed && (
-              <Link href="/dashboard" className="flex items-center justify-center">
-                <Image
-                  src="/images/logo-global.png"
-                  alt="VEXIM Global"
-                  width={40}
-                  height={40}
-                  className="object-contain"
-                  priority
-                />
-              </Link>
-            )}
+            <Link href="/dashboard" className="flex items-center justify-center w-full">
+              <LogoIcon size={collapsed ? 'sm' : 'md'} />
+            </Link>
           </div>
 
           {/* Navigation */}

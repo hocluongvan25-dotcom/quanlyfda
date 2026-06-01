@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import Image from "next/image"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { LogoIcon } from "@/components/logo-icon"
 import { AlertCircle, Eye, EyeOff, Loader2 } from "lucide-react"
 
 export function LoginForm() {
@@ -119,14 +119,7 @@ export function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center mb-8">
-          <Image
-            src="/images/logo-global.png"
-            alt="VEXIM Global"
-            width={200}
-            height={120}
-            priority
-            className="object-contain"
-          />
+          <LogoIcon size="lg" />
         </div>
 
         <Card className="border-border bg-card">
