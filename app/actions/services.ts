@@ -315,7 +315,8 @@ export async function updateServiceStage(
         toStage,
         note,
         fdaInfo,
-        usAgentInfo
+        usAgentInfo,
+        stage // Pass stage code to detect completion_handover for Vexim Trade promo
       )
 
       await sendEmail({

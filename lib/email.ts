@@ -225,7 +225,8 @@ export const emailTemplates = {
       us_agent_name: string
       us_agent_start_date: string
       us_agent_expiry_date: string
-    }
+    },
+    toStage?: string // Stage code to detect completion_handover
   ) => ({
     subject: `Cập nhật dịch vụ: "${productName}" chuyển sang "${toStageLabel}"`,
     html: layout({
@@ -265,6 +266,19 @@ export const emailTemplates = {
         <h3 style="margin:16px 0 8px;font-size:14px;color:#0f766e;">Thông tin từ nhân viên:</h3>
         <div style="background:#f8fafc;border-left:4px solid #0f766e;padding:12px;border-radius:4px;">
           <p style="margin:0;font-size:14px;line-height:1.6;color:#0f172a;white-space:pre-wrap;">${note}</p>
+        </div>
+        ` : ''}
+        ${toStage === 'completion_handover' ? `
+        <div style="background:linear-gradient(135deg, #065f46 0%, #047857 100%);border-radius:8px;padding:24px;margin:24px 0;text-align:center;">
+          <h3 style="margin:0 0 12px;font-size:18px;color:#ffffff;font-weight:600;">
+            Chuc mung! San pham cua ban da du dieu kien phap ly de len ke tai My
+          </h3>
+          <p style="margin:0 0 16px;font-size:14px;line-height:1.6;color:#d1fae5;">
+            He thong <strong>Vexim Trade</strong> da san sang kich hoat co che tiep can <strong>5000+ Nha nhap khau My</strong> cho san pham cua ban.
+          </p>
+          <a href="https://www.veximtrade.com/" style="display:inline-block;background:#ffffff;color:#065f46;font-weight:600;padding:12px 24px;border-radius:6px;text-decoration:none;font-size:14px;">
+            Bat dau lo trinh xuat khau ngay
+          </a>
         </div>
         ` : ''}
         <p style="font-size:14px;line-height:1.6;">Vui lòng đăng nhập vào hệ thống để xem thêm chi tiết.</p>
