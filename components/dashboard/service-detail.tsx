@@ -377,7 +377,7 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
                     <CardTitle className="text-foreground">Checklist công việc</CardTitle>
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">
-                        {completedTasks}/{totalTasks} hoàn thành
+                        {completedTasks}/{totalTasks} ho��n thành
                       </span>
                       {isStaffOrAdmin && (
                         <CreateTaskDialog
@@ -721,22 +721,136 @@ export function ServiceDetail({ serviceId }: ServiceDetailProps) {
                   )}
                   <div>
                     <p className="text-xs text-muted-foreground">Ngày hết hạn</p>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm text-foreground">
-                        {formatDate(service.us_agent_expiry_date)}
-                      </p>
-                      {agentExpiryStatus && agentExpiryStatus !== 'normal' && (
-                        <Badge
-                          variant={agentExpiryStatus === 'expired' || agentExpiryStatus === 'critical' ? 'destructive' : 'secondary'}
-                          className={agentExpiryStatus === 'warning' ? 'bg-warning text-warning-foreground' : ''}
-                        >
-                          {agentExpiryStatus === 'expired'
-                            ? 'Đã hết hạn'
-                            : `${agentDaysUntilExpiry} ngày`}
-                        </Badge>
-                      )}
-                    </div>
+                    <p className="text-sm text-foreground">
+                      {formatDate(service.us_agent_expiry_date)}
+                    </p>
                   </div>
+
+                  {/* Countdown Widget */}
+                  {service.us_agent_expiry_date && (() => {
+                    const days = agentDaysUntilExpiry ?? 0
+                    const status = agentExpiryStatus ?? 'normal'
+
+                    // Total lifespan in days (start → expiry), fallback to 365 if no start date
+                    const totalDays = service.us_agent_start_date
+                      ? Math.max(
+                          1,
+                          Math.round(
+                            (new Date(service.us_agent_expiry_date).getTime() -
+                              new Date(service.us_agent_start_date).getTime()) /
+                              (1000 * 60 * 60 * 24)
+                          )
+                        )
+                      : 365
+
+                    const remainingPercent = Math.max(0, Math.min(100, (days / totalDays) * 100))
+
+                    const colorMap = {
+                      normal:   { ring: 'text-emerald-400',  bg: 'bg-emerald-500/15', bar: 'bg-emerald-500',   badge: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',   label: 'Còn hiệu lực' },
+                      warning:  { ring: 'text-amber-400',    bg: 'bg-amber-500/15',   bar: 'bg-amber-500',     badge: 'bg-amber-500/20 text-amber-400 border-amber-500/30',         label: 'Sắp hết hạn' },
+                      critical: { ring: 'text-red-400',      bg: 'bg-red-500/15',     bar: 'bg-red-500',       badge: 'bg-red-500/20 text-red-400 border-red-500/30',               label: 'Gần hết hạn' },
+                      expired:  { ring: 'text-zinc-400',     bg: 'bg-zinc-500/15',    bar: 'bg-zinc-500',      badge: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',            label: 'Đã hết hạn'  },
+                    }
+                    const c = colorMap[status]
+
+                    // SVG circular ring
+                    const radius = 38
+                    const circumference = 2 * Math.PI * radius
+                    const strokeDashoffset = circumference * (1 - remainingPercent / 100)
+
+                    return (
+                      <div className={`rounded-xl ${c.bg} border border-border p-4 space-y-3`}>
+                        {/* Header row */}
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                            Thời hạn hiệu lực
+                          </p>
+                          <Badge variant="outline" className={`text-xs px-2 py-0.5 ${c.badge}`}>
+                            {c.label}
+                          </Badge>
+                        </div>
+
+                        {/* Ring + number */}
+                        <div className="flex items-center gap-4">
+                          <div className="relative shrink-0">
+                            <svg width="92" height="92" viewBox="0 0 92 92" className="-rotate-90">
+                              {/* Track */}
+                              <circle
+                                cx="46" cy="46" r={radius}
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="7"
+                                className="text-border"
+                              />
+                              {/* Progress */}
+                              <circle
+                                cx="46" cy="46" r={radius}
+                                fill="none"
+                                strokeWidth="7"
+                                strokeLinecap="round"
+                                style={{
+                                  stroke: status === 'normal'   ? '#34d399'
+                                        : status === 'warning'  ? '#fbbf24'
+                                        : status === 'critical' ? '#f87171'
+                                        : '#71717a',
+                                  strokeDasharray: circumference,
+                                  strokeDashoffset,
+                                  transition: 'stroke-dashoffset 0.6s ease',
+                                }}
+                              />
+                            </svg>
+                            {/* Centre text */}
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                              <span className={`text-xl font-bold leading-none ${c.ring}`}>
+                                {status === 'expired' ? '0' : days}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground mt-0.5">ngày</span>
+                            </div>
+                          </div>
+
+                          {/* Right side info */}
+                          <div className="flex-1 space-y-2">
+                            <div>
+                              <p className="text-[11px] text-muted-foreground">Số ngày còn lại</p>
+                              <p className={`text-2xl font-bold tabular-nums ${c.ring}`}>
+                                {status === 'expired' ? '—' : days.toLocaleString('vi-VN')}
+                              </p>
+                            </div>
+                            {status !== 'expired' && (
+                              <div>
+                                <p className="text-[11px] text-muted-foreground mb-1">
+                                  {Math.round(remainingPercent)}% thời hạn còn lại
+                                </p>
+                                <div className="h-1.5 w-full rounded-full bg-border overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-700 ${c.bar}`}
+                                    style={{ width: `${remainingPercent}%` }}
+                                  />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Footer note */}
+                        {status === 'expired' && (
+                          <p className="text-xs text-muted-foreground text-center pt-1 border-t border-border">
+                            US Agent đã hết hạn — vui lòng gia hạn để duy trì đăng ký FDA
+                          </p>
+                        )}
+                        {status === 'critical' && (
+                          <p className="text-xs text-amber-400 text-center pt-1 border-t border-border">
+                            Chỉ còn {days} ngày — hãy liên hệ để gia hạn sớm
+                          </p>
+                        )}
+                        {status === 'warning' && (
+                          <p className="text-xs text-amber-400/80 text-center pt-1 border-t border-border">
+                            Còn {days} ngày — nên bắt đầu chuẩn bị gia hạn
+                          </p>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </>
               ) : (
                 <div className="text-center py-4 text-muted-foreground">
